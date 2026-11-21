@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
-TRANSACTION_COLUMNS = ["transaction_id","listing_id","physical_vehicle_id","vehicle_variant_id","source_id","source_name","source_url","auction_start_date","auction_end_date","sale_status","sale_price","currency","buyer_premium_included","price_usd","mileage_at_sale","condition_grade","title_status"]
+TRANSACTION_COLUMNS = ['transaction_id', 'listing_id', 'physical_vehicle_id', 'vehicle_variant_id', 'source_id', 'source_name', 'source_url', 'auction_start_date', 'auction_end_date', 'sale_status', 'sale_price', 'currency', 'buyer_premium_included', 'price_usd', 'mileage_at_sale', 'condition_grade', 'title_status', 'location', 'seller_type', 'evidence_url', 'evidence_capture_date', 'data_quality_score', 'duplicate_group_id', 'repeat_sale_group_id', 'exclusion_flag', 'exclusion_reason', 'notes', 'legacy_transaction_id', 'legacy_listing_id', 'source_title_status_assertion', 'title_evidence_status', 'source_outcome_assertion', 'outcome_verification_status', 'data_use_status', 'identity_method', 'vin', 'physical_identity_status', 'source_variant_id', 'variant_normalization_status', 'investment_eligibility_status', 'reconciliation_status', 'legacy_duplicate_group_id', 'source_data_quality_score_assertion']
 
 def _retry(operation: Callable[[], Any], attempts: int = 3) -> Any:
     last = None
@@ -27,12 +27,14 @@ def _values(service, spreadsheet_id: str, sheet: str, cell_range: str) -> list[l
     result = _retry(lambda: service.spreadsheets().values().get(spreadsheetId=spreadsheet_id, range=f"'{sheet}'!{cell_range}", valueRenderOption="UNFORMATTED_VALUE").execute())
     return result.get("values", [])
 
-def retrieve_transactions(spreadsheet_id: str, sheet: str = "Auction Transactions", cell_range: str = "A1:Q28059") -> tuple[Path, dict]:
+def retrieve_transactions(spreadsheet_id: str, sheet: str = "Auction Transactions", cell_range: str = "A1:AQ") -> tuple[Path, dict]:
     service, project = _service()
     rows = _values(service, spreadsheet_id, sheet, cell_range)
-    if not rows or rows[0][:len(TRANSACTION_COLUMNS)] != TRANSACTION_COLUMNS:
+    if not rows or rows[0] != TRANSACTION_COLUMNS:
         raise ValueError("production sheet schema does not match the approved transaction contract")
     data = rows[1:]
+    if any(len(row) > len(TRANSACTION_COLUMNS) for row in data):
+        raise ValueError("production row exceeds schema width")
     if len(data) != 28058:
         raise ValueError(f"unexpected production row count: {len(data)}")
     fd, name = tempfile.mkstemp(prefix="cci-production-", suffix=".csv")
@@ -56,14 +58,15 @@ def _ensure_sheet(service, spreadsheet_id: str, title: str) -> int:
     return int(reply["replies"][0]["addSheet"]["properties"]["sheetId"])
 
 def publish_metrics(spreadsheet_id: str, metrics: dict, output_sheet: str = "Sprint 25 Runner Output") -> dict:
+    if output_sheet not in {"Sprint 25 Auth Test", "Sprint 25 Runner Output"}:
+        raise ValueError("output tab is not authorized")
     service, _ = _service()
     _ensure_sheet(service, spreadsheet_id, output_sheet)
     now = datetime.now(timezone.utc).isoformat()
     rows = [["execution_id","published_at_utc","metric","value"], *[[metrics.get("execution_id",""),now,k,json.dumps(v, separators=(",",":"))] for k,v in sorted(metrics.items())]]
+    _retry(lambda: service.spreadsheets().values().clear(spreadsheetId=spreadsheet_id, range=f"'{output_sheet}'!A:D", body={}).execute())
     _retry(lambda: service.spreadsheets().values().update(spreadsheetId=spreadsheet_id, range=f"'{output_sheet}'!A1", valueInputOption="RAW", body={"values":rows}).execute())
     check = _values(service, spreadsheet_id, output_sheet, f"A1:D{len(rows)}")
-    expected_hash = json.dumps(metrics.get("input_sha256"), separators=(",",":"))
-    hash_rows = [row for row in check[1:] if len(row) >= 4 and row[2] == "input_sha256"]
-    if len(check) != len(rows) or check[0] != rows[0] or check[1][0] != metrics.get("execution_id","") or not hash_rows or hash_rows[0][3] != expected_hash:
-        raise RuntimeError("publication readback failed")
+    if check != rows:
+        raise RuntimeError("publication readback failed: cell content mismatch")
     return {"status":"VERIFIED","sheet":output_sheet,"row_count":len(check),"input_sha256":metrics.get("input_sha256"),"readback_verified":True}

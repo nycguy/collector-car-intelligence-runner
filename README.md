@@ -1,9 +1,21 @@
 # Collector Car Intelligence Runner
 
-Public, disclosure-reviewed execution surface for Collector Car Intelligence.
+Public, disclosure-reviewed execution surface. Private transaction rows, VINs,
+credentials, and research files never enter its source or public artifacts.
 
-This repository contains data-agnostic code only. It excludes private transaction exports, VIN-linked records, credentials, restricted research notes, and production artifacts.
+The manually dispatched `campaign` workflow runs only from `main`, uses Google
+OIDC, and defaults to `auth-test`. This reads and validates all 43 transaction
+columns and the expected 28,058-row population, fingerprints the ephemeral CSV,
+and writes aggregate evidence to `Sprint 25 Auth Test` with exact cell readback.
 
-The runner accepts an authorized CSV snapshot at runtime, validates schema and integrity, writes aggregate JSON only, and fails closed when authorization or data quality checks fail.
+`production` invokes the existing Sprint 22 reconciliation and valuation functions
+on eligible explicit mappings and publishes aggregate diagnostics to `Sprint 25
+Runner Output`. The reused engine computes **unadjusted exploratory medians**.
+It does not satisfy adjusted valuation, forecast, or backtesting requirements;
+all supported investment counts remain unavailable and acceptance stays blocked.
+There is no autonomous dispatch implementation in this runner.
 
-Local test: python -m unittest discover -s tests -v
+Both modes delete the local input. Only two explicitly named aggregate JSON files
+can be uploaded. Unit tests use synthetic observations, never production rows.
+
+Run tests: `python -m unittest discover -s tests -v`.

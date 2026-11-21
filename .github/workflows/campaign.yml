@@ -2,8 +2,14 @@ name: campaign
 on:
   workflow_dispatch:
     inputs:
+      mode:
+        description: "Authentication test or exploratory production engine"
+        type: choice
+        options: [auth-test, production]
+        default: auth-test
+        required: true
       snapshot_id:
-        description: "External snapshot identifier; generated from run ID when omitted"
+        description: "Snapshot identifier; generated from run ID when omitted"
         required: false
         type: string
 permissions:
@@ -14,10 +20,20 @@ concurrency:
   cancel-in-progress: false
 jobs:
   execute:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      CCI_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER || secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      CCI_SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT || secrets.GCP_SERVICE_ACCOUNT }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check identity configuration
+        run: |
+          test -n "$CCI_IDENTITY_PROVIDER" || { echo 'BLOCKED: workload identity provider not configured'; exit 1; }
+          test -n "$CCI_SERVICE_ACCOUNT" || { echo 'BLOCKED: service account not configured'; exit 1; }
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -26,20 +42,21 @@ jobs:
       - name: Authenticate to Google with OIDC
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          workload_identity_provider: ${{ env.CCI_IDENTITY_PROVIDER }}
+          service_account: ${{ env.CCI_SERVICE_ACCOUNT }}
           create_credentials_file: true
           cleanup_credentials: true
-      - name: Execute production pipeline
+      - name: Execute requested verification
         env:
           CCI_SPREADSHEET_ID: "104Op_SgmViFl5sMxY5RcpShAS7J7s6CKo2cGHMqQMCw"
           CCI_SNAPSHOT_ID: ${{ inputs.snapshot_id }}
-          CCI_TRANSACTION_RANGE: "A1:Q28059"
+          CCI_MODE: ${{ inputs.mode }}
+          CCI_ANALYSIS_DATE: "2026-11-20"
         run: python -m campaign.production
-      - name: Verify aggregate-only artifact
-        run: test ! -e run-output/raw_rows.csv
       - uses: actions/upload-artifact@v4
         with:
           name: campaign-evidence-${{ github.run_id }}
-          path: run-output
+          path: |
+            run-output/metrics.json
+            run-output/publication_status.json
           if-no-files-found: error

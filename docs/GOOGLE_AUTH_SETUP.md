@@ -1,14 +1,34 @@
-# Google Actions authorization
+# Google Actions authorization status and contract
 
-The runner is designed for keyless GitHub OIDC authentication. Configure a Google Cloud Workload Identity Pool/provider for repository `nycguy/collector-car-intelligence-runner`, restricted to the approved branch or `main`, and create a dedicated service account with only:
+Status on 2026-11-21: BLOCKED. No Google Cloud project or identity has been
+verified. Cloud Console was inaccessible from the available browser. Connected
+GitHub access confirmed zero repository Actions variables and zero secrets.
+The workbook has only the owner's permission; no runner identity is shared.
 
-- `roles/iam.workloadIdentityUser` granted to the repository-bound principal
-- access to the target spreadsheet as an Editor, not broad Drive access
-- the Sheets API enabled
+The workflow accepts repository variables (preferred) or existing secrets named
+`GCP_WORKLOAD_IDENTITY_PROVIDER` and `GCP_SERVICE_ACCOUNT`. These are non-secret
+identifiers, not private keys. Production runs are restricted to `main`.
 
-Store only these two non-credential configuration values as GitHub Actions secrets:
+When Cloud administration becomes available, inspect existing resources first.
+The intended GitHub identity is repository ID `1466645605`, owner ID `8333082`,
+repository `nycguy/collector-car-intelligence-runner`, ref `refs/heads/main`.
+Require all identifiers and the exact ref in the provider condition, map
+`google.subject=assertion.sub` and `attribute.repository_id=assertion.repository_id`,
+and bind only that repository principal to the dedicated service account using
+`roles/iam.workloadIdentityUser`. The issuer is
+`https://token.actions.githubusercontent.com`.
 
-- `GCP_WORKLOAD_IDENTITY_PROVIDER`: full provider resource name
-- `GCP_SERVICE_ACCOUNT`: dedicated service-account email
+Use Sheets, IAM Credentials and strictly necessary federation APIs. Do not enable
+billing or assign project Owner/Editor to the service account. Grant Editor only
+on the production spreadsheet, not the research folder. Do not create JSON keys.
+A suitable short service-account ID, if no existing identity fits, is
+`cci-production-runner`. No identity with that name has been created.
 
-Do not upload a JSON key. Do not put a private key, refresh token, or transaction export in GitHub. The workflow deletes the temporary credentials file after the job. The exact Google Cloud project and account must be selected by the owner because the connected Work identity cannot create or delegate a GitHub-trusted Google Cloud identity in this environment.
+After resources and spreadsheet sharing are verified, configure the two repository
+variables and dispatch `auth-test` from `main`. Review OIDC, Google impersonation,
+full-range retrieval and exact output readback before dispatching `production`.
+No authentication or production run was attempted with absent configuration.
+
+An auth test is not valuation evidence. Even a successful current `production`
+run remains exploratory because the legacy engine lacks full adjustments and
+validated forecasts. Do not accept Sprint 25 or dispatch Sprint 26 on that basis.
