@@ -43,7 +43,7 @@ def retrieve_transactions(spreadsheet_id: str, sheet: str = "Auction Transaction
         writer.writeheader()
         for row in data:
             padded = list(row) + [""] * (len(TRANSACTION_COLUMNS) - len(row))
-            writer.writerow(dict(zip(TRANSACTION_COLUMNS, padded[:len(TRANSACTION_COLUMNS])))
+            writer.writerow(dict(zip(TRANSACTION_COLUMNS, padded[:len(TRANSACTION_COLUMNS)]))))
     digest = hashlib.sha256(path.read_bytes()).hexdigest()
     return path, {"project": project, "sheet": sheet, "range": cell_range, "row_count": len(data), "input_sha256": digest}
 
