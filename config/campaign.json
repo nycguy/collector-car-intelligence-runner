@@ -1,1 +1,14 @@
-{"campaign_id":"campaign-23-32","latest_completed_sprint":23,"next_sprint":24,"analysis_baseline":"2026-11-20","public_runner":true,"production_data_policy":"runtime-only-authorized-input","raw_artifacts":false,"continuation_requires_verified_publication_readback":true}
+{
+  "campaign_id": "campaign-23-32",
+  "latest_completed_sprint": 23,
+  "next_sprint": 25,
+  "analysis_baseline": "2026-11-20",
+  "public_runner": true,
+  "production_data_policy": "runtime-only-authorized-input",
+  "raw_artifacts": false,
+  "continuation_requires_verified_publication_readback": true,
+  "state": "BLOCKED",
+  "current_sprint": 25,
+  "analytical_acceptance": false,
+  "blocking_issue": "Cloud authorization unavailable; adjusted valuations and forecasts unvalidated"
+}
