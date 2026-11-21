@@ -1,6 +1,6 @@
 # Google Actions authorization
 
-The runner is designed for keyless GitHub OIDC authentication. Configure a Google Cloud Workload Identity Pool/provider for repository `nycguy/collector-car-intelligence-runner`, restricted to the approved branch or `main), and create a dedicated service account with only:
+The runner is designed for keyless GitHub OIDC authentication. Configure a Google Cloud Workload Identity Pool/provider for repository `nycguy/collector-car-intelligence-runner`, restricted to the approved branch or `main`, and create a dedicated service account with only:
 
 - `roles/iam.workloadIdentityUser` granted to the repository-bound principal
 - access to the target spreadsheet as an Editor, not broad Drive access
