@@ -1,0 +1,40 @@
+name: campaign
+on:
+  workflow_dispatch:
+    inputs:
+      input_path:
+        description: "Runner-local path to an authorized CSV snapshot"
+        required: true
+        type: string
+      snapshot_id:
+        description: "Externally assigned snapshot identifier"
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: collector-car-campaign
+  cancel-in-progress: false
+jobs:
+  execute:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - name: Validate runtime input
+        env:
+          INPUT_PATH: ${{ inputs.input_path ${{
+        run: test -f "$INPUT_PATH"
+      - name: Execute aggregate pipeline
+        env:
+          INPUT_PATH: ${{ inputs.input_path ${{
+          SNAPSHOT_ID: ${{ inputs.snapshot_id ${{
+        run: python -c "from campaign.executor import execute; execute('$INPUT_PATH','run-output','$SNAPSHOT_ID')"
+      - run: test ! -e run-output/raw_rows.csv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: campaign-evidence-${{ github.run_id ${{
+          path: run-output
+          if-no-files-found: error
