@@ -3,10 +3,10 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "Authentication test or exploratory production engine"
+        description: "Authentication test, legacy exploratory run, or Sprint 26 analytical production"
         type: choice
-        options: [auth-test, production]
-        default: auth-test
+        options: [auth-test, production, sprint26]
+        default: sprint26
         required: true
       snapshot_id:
         description: "Snapshot identifier; generated from run ID when omitted"
@@ -24,8 +24,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      CCI_IDENTITY_PROVIDER: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER || secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-      CCI_SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT || secrets.GCP_SERVICE_ACCOUNT }}
+      CCI_IDENTITY_PROVIDER: \x24{{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER || secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      CCI_SERVICE_ACCOUNT: \x24{{ vars.GCP_SERVICE_ACCOUNT || secrets.GCP_SERVICE_ACCOUNT }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -42,20 +42,20 @@ jobs:
       - name: Authenticate to Google with OIDC
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ env.CCI_IDENTITY_PROVIDER }}
-          service_account: ${{ env.CCI_SERVICE_ACCOUNT }}
+          workload_identity_provider: \x24{{ env.CCI_IDENTITY_PROVIDER }}
+          service_account: \x24{{ env.CCI_SERVICE_ACCOUNT }}
           create_credentials_file: true
           cleanup_credentials: true
       - name: Execute requested verification
         env:
           CCI_SPREADSHEET_ID: "104Op_SgmViFl5sMxY5RcpShAS7J7s6CKo2cGHMqQMCw"
-          CCI_SNAPSHOT_ID: ${{ inputs.snapshot_id }}
-          CCI_MODE: ${{ inputs.mode }}
+          CCI_SNAPSHOT_ID: \x24{{ inputs.snapshot_id }}
+          CCI_MODE: \x24{{ inputs.mode }}
           CCI_ANALYSIS_DATE: "2026-11-20"
         run: python -m campaign.production
       - uses: actions/upload-artifact@v4
         with:
-          name: campaign-evidence-${{ github.run_id }}
+          name: campaign-evidence-\x24{{ github.run_id }}
           path: |
             run-output/metrics.json
             run-output/publication_status.json
