@@ -37,7 +37,9 @@ def run() -> dict:
             publication = publish_metrics(spreadsheet_id, metrics, "Sprint 25 Runner Output")
         metrics["publication"] = publication
         output_dir.mkdir(parents=True, exist_ok=True)
-        (output_dir/"metrics.json").write_text(json.dumps(metrics, indent=2)+"\n")
+        public_metrics = {k: v for k, v in metrics.items() if k not in {"valuation_evidence", "five_year_forecasts", "model_opportunities", "individual_purchase_opportunities"}}
+        public_metrics["private_workbook_records_published"] = True
+        (output_dir/"metrics.json").write_text(json.dumps(public_metrics, indent=2)+"\n")
         (output_dir/"publication_status.json").write_text(json.dumps(publication, indent=2)+"\n")
         return metrics
     finally:
