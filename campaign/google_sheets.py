@@ -43,7 +43,14 @@ def _write_rows(service, spreadsheet_id: str, title: str, rows: list[list[Any]])
     _retry(lambda: service.spreadsheets().values().clear(spreadsheetId=spreadsheet_id,range=f"'{title}'!A:Z",body={}).execute())
     _retry(lambda: service.spreadsheets().values().update(spreadsheetId=spreadsheet_id,range=f"'{title}'!A1",valueInputOption="RAW",body={"values":rows}).execute())
     check=_values(service,spreadsheet_id,title,f"A1:Z{len(rows)}"); expected=[list(map(lambda x:"" if x is None else x,row)) for row in rows]; got=[(row+[""]*len(rows[0]))[:len(rows[0])] for row in check]
-    if got!=expected: raise RuntimeError(f"publication readback failed for {title}")
+    def _cell_equal(a: Any, b: Any) -> bool:
+        if a in (None, "") and b in (None, ""): return True
+        try:
+            if isinstance(a, (int, float)) and isinstance(b, (int, float)): return float(a) == float(b)
+        except (TypeError, ValueError): pass
+        return str(a) == str(b)
+    if len(got) != len(expected) or any(len(a) != len(b) or any(not _cell_equal(x,y) for x,y in zip(a,b)) for a,b in zip(got,expected)):
+        raise RuntimeError(f"publication readback failed for {title}")
     return {"sheet":title,"row_count":len(check),"readback_verified":True}
 def _records_rows(records: list[dict]) -> list[list[Any]]:
     if not records: return [["status","no_records"]]
