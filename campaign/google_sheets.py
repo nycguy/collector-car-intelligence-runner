@@ -82,3 +82,21 @@ def publish_sprint29(spreadsheet_id: str, metrics: dict) -> dict:
     outputs={"Investment Watchlist":_records_rows(metrics.get("investment_watchlist",[])),"Model Opportunities":_records_rows(metrics.get("model_opportunities",[])),"Individual Purchase Opportunities":_records_rows(metrics.get("individual_purchase_opportunities",[])),"Historical Valuations":_records_rows(metrics.get("historical_valuations",[])),"Historical Returns":_records_rows(metrics.get("historical_returns",[])),"Forecast Scenarios":_records_rows(metrics.get("forecast_scenarios",[])),"Research Confidence":_records_rows(metrics.get("title_population",[])),"Data Coverage":_records_rows(metrics.get("data_coverage",[])),"Sprint 29 Summary":summary,"Sprint 29 Legacy Reconciliation":_records_rows(metrics.get("legacy_valuation_reconciliation",[]))}
     results=[_write_rows(service,spreadsheet_id,title,rows) for title,rows in outputs.items()]
     return {"status":"VERIFIED","tabs":results,"input_sha256":metrics.get("input_sha256"),"readback_verified":all(x["readback_verified"] for x in results)}
+
+def publish_sprint30(spreadsheet_id: str, metrics: dict) -> dict:
+    service,_=_service(); now=datetime.now(timezone.utc).isoformat()
+    excluded={"qualified_model_opportunities","excluded_model_variants","unverified_research_queue","historical_valuations","historical_returns","forecast_scenarios","watchlist_audit","nsx_investigation"}
+    summary=[["execution_id","published_at_utc","metric","value"],*[[metrics.get("execution_id",""),now,k,json.dumps(v,separators=(",",":"))] for k,v in sorted(metrics.items()) if k not in excluded]]
+    outputs={"Qualified Model Opportunities":_records_rows(metrics.get("qualified_model_opportunities",[])),
+             "Excluded Over 5pct":_records_rows(metrics.get("excluded_model_variants",[])),
+             "Unverified Research Queue":_records_rows(metrics.get("unverified_research_queue",[])),
+             "Historical Valuations":_records_rows(metrics.get("historical_valuations",[])),
+             "Historical Returns":_records_rows(metrics.get("historical_returns",[])),
+             "Five-Year Forecasts":_records_rows(metrics.get("forecast_scenarios",[])),
+             "Individual Purchase Opportunities":_records_rows(metrics.get("individual_purchase_opportunities",[])),
+             "NSX Investigation":_records_rows(metrics.get("nsx_investigation",[])),
+             "11-Entry Screening Audit":_records_rows(metrics.get("watchlist_audit",[])),
+             "Data Confidence":_records_rows(metrics.get("title_population",[])),
+             "Sprint 30 Summary":summary}
+    results=[_write_rows(service,spreadsheet_id,title,rows) for title,rows in outputs.items()]
+    return {"status":"VERIFIED","tabs":results,"input_sha256":metrics.get("input_sha256"),"readback_verified":all(x["readback_verified"] for x in results)}
