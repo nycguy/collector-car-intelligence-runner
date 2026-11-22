@@ -88,7 +88,7 @@ def analyze(frame: pd.DataFrame, as_of: str = "2026-11-20", min_comparables: int
     df["_adverse"] = df["_title_class"].eq("known_adverse")
     df["_market"] = (df["_status"].isin(COMPLETED) & df["_price"].gt(0) & df["_date"].notna() &
                      df["_date"].le(pd.Timestamp(as_of)) & ~df["_adverse"] &
-                     df["_cohort"].str.ne("") & _series(df, "source_url").str.strip().ne(""))
+                     df["_cohort"].str.strip().ne("") & _series(df, "source_url").str.strip().ne(""))
     df["_clean_market"] = df["_market"] & df["_title_class"].isin({"documentary_verified_clean", "source_reported_clean"})
     df["_strict"] = df["_clean_market"] & _series(df, "variant_normalization_status").map(_norm).isin(STRICT_VARIANTS)
     cutoff = pd.Timestamp(as_of)
