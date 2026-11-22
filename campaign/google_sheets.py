@@ -97,4 +97,9 @@ def _records_rows(records: list[dict]) -> list[list[Any]]:
         return [["status","no_records"]]
     keys = sorted({key for record in records for key in record})
     return [keys] + [[_sheet_value(record.get(key)) for key in keys] for record in records]
-\n\ndef _sheet_value(value: Any) -> Any:\n    if isinstance(value, float) and not math.isfinite(value):\n        return None\n    return value\n
+
+
+def _sheet_value(value: Any) -> Any:
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    return value
