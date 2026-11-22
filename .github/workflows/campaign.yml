@@ -1,7 +1,5 @@
 name: campaign
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
       mode:
@@ -22,7 +20,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   execute:
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[run-sprint28]'))
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
@@ -52,7 +50,7 @@ jobs:
         env:
           CCI_SPREADSHEET_ID: "104Op_SgmViFl5sMxY5RcpShAS7J7s6CKo2cGHMqQMCw"
           CCI_SNAPSHOT_ID: ${{ inputs.snapshot_id }}
-          CCI_MODE: ${{ inputs.mode || 'sprint28' }}
+          CCI_MODE: ${{ inputs.mode }}
           CCI_ANALYSIS_DATE: "2026-11-20"
         run: python -m campaign.production
       - uses: actions/upload-artifact@v4
