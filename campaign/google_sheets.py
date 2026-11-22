@@ -103,3 +103,31 @@ def _sheet_value(value: Any) -> Any:
     if isinstance(value, float) and not math.isfinite(value):
         return None
     return value
+
+
+def publish_sprint27(spreadsheet_id: str, metrics: dict) -> dict:
+    """Publish Sprint 27 evidence populations and reconciliation diagnostics."""
+    service, _ = _service()
+    now = datetime.now(timezone.utc).isoformat()
+    summary = [["execution_id", "published_at_utc", "metric", "value"],
+               *[[metrics.get("execution_id", ""), now, k, json.dumps(v, separators=(",", ":"))]
+                 for k, v in sorted(metrics.items())
+                 if k not in {"valuation_evidence", "market_evidence_valuation", "historical_returns",
+                              "model_opportunities", "individual_purchase_opportunities"}]]
+    outputs = {
+        "Sprint 27 Summary": summary,
+        "Eligibility Diagnostics": [["reason", "count"], *[[k, v] for k, v in sorted(metrics.get("eligibility_reason_counts", {}).items())]],
+        "Title Evidence": [["population", "rows", "interpretation"],
+            ["historical_market_evidence_unknown_title", metrics.get("historical_market_evidence_unknown_title_rows", 0), "descriptive market evidence only; title remains unknown"],
+            ["verified_clean_title", metrics.get("verified_clean_title_rows", 0), "title status not adverse and not unknown"],
+            ["adverse_title_excluded", metrics.get("input_row_count", 0) - metrics.get("historical_market_evidence_rows", 0), "excluded from market evidence"]],
+        "Variant Crosswalk": _records_rows(metrics.get("variant_crosswalk", [])),
+        "Historical Valuation Reconciliation": _records_rows(metrics.get("valuation_reconciliation", [])),
+        "Valuation Evidence": _records_rows(metrics.get("valuation_evidence", [])),
+        "Historical Returns": _records_rows(metrics.get("historical_returns", [])),
+        "Source Coverage": _records_rows(metrics.get("source_coverage", [])),
+        "Data Quality": _records_rows(metrics.get("clean_title_unassigned_clusters", [])),
+    }
+    results = [_write_rows(service, spreadsheet_id, title, rows) for title, rows in outputs.items()]
+    return {"status": "VERIFIED", "tabs": results, "input_sha256": metrics.get("input_sha256"),
+            "readback_verified": all(item["readback_verified"] for item in results)}
