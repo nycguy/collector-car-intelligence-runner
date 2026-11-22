@@ -47,7 +47,7 @@ def _adjusted_median(g: pd.DataFrame) -> tuple[float | None, float | None, float
     if price.empty:
         return None, None, None, None
     target = miles.median() if miles.notna().any() else None
-    adj = price.copy()
+    adj = price.astype(float).copy()
     if target is not None:
         known = miles.notna()
         factor = 1 + ((miles[known] - target) / 1000 * 0.0005).clip(-0.25, 0.25)
