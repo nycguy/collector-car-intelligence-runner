@@ -102,7 +102,7 @@ def analyze(frame: pd.DataFrame, as_of: str = "2026-11-20", min_comparables: int
                 return None
             med_miles = v["_mileage"].median()
             adjusted = v["_price"].copy()
-            known = v["_mileage"].notna() & med_miles.notna()
+            known = v["_mileage"].notna() & pd.notna(med_miles)
             factor = 1 + ((v.loc[known, "_mileage"] - med_miles) / 1000 * 0.0005).clip(-.25, .25)
             adjusted.loc[known] = adjusted.loc[known] * factor
             trimmed = adjusted.sort_values()
