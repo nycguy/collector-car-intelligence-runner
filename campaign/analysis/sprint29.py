@@ -121,7 +121,8 @@ def analyze(frame: pd.DataFrame, as_of: str = "2026-11-20", min_comparables: int
             returns.append({k: valuation[k] for k in ["model_variant","prior24_adjusted_value_usd","current_adjusted_value_usd","return_24m_pct","prior60_adjusted_value_usd","return_60m_pct","evidence_class","supporting_source_urls"]})
         sc = _scenario(cur, r24, r60, valuation["data_confidence"], sample)
         forecasts.append({"model_variant": str(cohort), **sc, "current_value_usd": cur, "evidence_class": evidence})
-        if not (str(cohort).endswith("_save") or str(cohort) in {"bmw_3_series"}):\n            candidates.append({"rank_score": round(score, 2), "model_variant": str(cohort), "candidate_class": evidence,
+        if not (str(cohort).endswith("_save") or str(cohort) in {"bmw_3_series"}):
+            candidates.append({"rank_score": round(score, 2), "model_variant": str(cohort), "candidate_class": evidence,
                            "current_value_usd": cur, "return_24m_pct": valuation["return_24m_pct"], "return_60m_pct": valuation["return_60m_pct"],
                            "comparable_count": sample, "data_confidence": valuation["data_confidence"],
                            "catalysts": "analog/enthusiast scarcity, condition-sensitive collector demand", "risks": "thin liquidity, unknown title share, maintenance and specification dispersion",
