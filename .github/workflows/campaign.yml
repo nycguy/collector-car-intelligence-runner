@@ -3,9 +3,9 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "Authentication test, legacy run, Sprint 26 through Sprint 30"
+        description: "Authentication test, legacy run, Sprint 26 through Sprint 31"
         type: choice
-        options: [auth-test, production, sprint26, sprint27, sprint28, sprint29, sprint30]
+        options: [auth-test, production, sprint26, sprint27, sprint28, sprint29, sprint30, sprint31]
         default: sprint30
         required: true
       snapshot_id:
