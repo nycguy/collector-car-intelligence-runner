@@ -9,6 +9,7 @@ from .analysis.sprint27 import analyze as analyze_sprint27
 from .analysis.sprint28 import analyze as analyze_sprint28
 from .analysis.sprint29 import analyze as analyze_sprint29
 from .analysis.sprint30 import analyze as analyze_sprint30
+from .analysis.sprint31 import analyze as analyze_sprint31
 REQUIRED_COLUMNS={"transaction_id","vehicle_variant_id","source_id","auction_end_date","sale_status","price_usd","title_status","exclusion_flag","variant_normalization_status"}
 def sha256_file(path:Path)->str: return hashlib.sha256(path.read_bytes()).hexdigest()
 def _read_source(input_path:str)->tuple[Path,pd.DataFrame]:
@@ -61,4 +62,26 @@ def execute_sprint30(input_path:str,output_dir:str,snapshot_id:str,as_of:str="20
              "valuation_engine_executed":True,
              "ranking_gate":"historical_24m_before_forecast_before_ranking"}
     _write_public(Path(output_dir),metrics,{"qualified_model_opportunities","excluded_model_variants","unverified_research_queue","historical_valuations","historical_returns","forecast_scenarios","watchlist_audit","nsx_investigation"})
+    return metrics
+
+
+def execute_sprint31(input_path: str, output_dir: str, snapshot_id: str, as_of: str = "2026-11-20") -> dict:
+    source, raw = _read_source(input_path)
+    result = analyze_sprint31(raw, as_of=as_of)
+    summary = result["summary"]
+    metrics = {
+        "status": "SUCCEEDED", "execution_scope": "sprint_31_statistical_valuation",
+        "snapshot_id": snapshot_id, "analysis_date": as_of,
+        "extracted_at_utc": datetime.now(timezone.utc).isoformat(),
+        "input_row_count": len(raw), "input_sha256": sha256_file(source), **summary,
+        "historical_valuations": result["valuations"], "historical_returns": result["returns"],
+        "nsx_valuation_study": result["nsx"], "model_validation": result["backtest"],
+        "model_metadata": result["model_metadata"], "qualified_model_opportunities": [r for r in result["valuations"] if r.get("screening_result") == "PASS"],
+        "excluded_over_5pct": [r for r in result["valuations"] if r.get("screening_result") == "FAIL"],
+        "unverified_research_queue": [r for r in result["valuations"] if r.get("screening_result") == "UNVERIFIED"],
+        "individual_purchase_opportunities": [], "valuation_engine_executed": True,
+        "ranking_gate": "historical_24m_before_ranking", "raw_rows_written_to_artifacts": False,
+        "analytical_acceptance": False
+    }
+    _write_public(Path(output_dir), metrics, {"historical_valuations", "historical_returns", "nsx_valuation_study", "qualified_model_opportunities", "excluded_over_5pct", "unverified_research_queue"})
     return metrics
