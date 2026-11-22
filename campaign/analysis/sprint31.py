@@ -279,22 +279,25 @@ def analyze(raw: pd.DataFrame, as_of: str = ANALYSIS_DATE, top_n: int = 20) -> d
         group = frame[frame["_variant"] == variant]
         ref = references[variant]
         ep = {d: endpoint_values[d].get(variant, {"status": "UNSUPPORTED"}) for d in ENDPOINTS}
-        v21, v24, v26 = (ep[d].get("estimated_value_usd") if ep[d].get("status") != "UNSUPPORTED" else None for d in ENDPOINTS)
-        supported = all(ep[d].get("status") == "SUPPORTED" for d in ENDPOINTS)
-        r24, r60 = (_return(v26, v24), _return(v26, v21)) if supported else (None, None)
+        v21 = ep["2021-11-20"].get("estimated_value_usd") if ep["2021-11-20"].get("status") == "SUPPORTED" else None
+        v24 = ep["2024-11-20"].get("estimated_value_usd") if ep["2024-11-20"].get("status") == "SUPPORTED" else None
+        v26 = ep["2026-11-20"].get("estimated_value_usd") if ep["2026-11-20"].get("status") == "SUPPORTED" else None
+        r24 = _return(v26, v24)
+        r60 = _return(v26, v21)
         row = {"model_variant": variant, "reference_specification": json.dumps(ref, sort_keys=True),
                "value_2021_usd": v21, "value_2024_usd": v24, "value_2026_usd": v26,
                "return_24m_pct": r24, "return_60m_pct": r60, "comparable_sale_count": len(group),
                "effective_sample_size": ep[ENDPOINTS[-1]].get("effective_sample_size"),
                "lower_2026_usd": ep[ENDPOINTS[-1]].get("lower_usd"), "upper_2026_usd": ep[ENDPOINTS[-1]].get("upper_usd"),
                "historical_coverage": f"{group['_date'].min().date().isoformat()} to {group['_date'].max().date().isoformat()}",
-               "confidence": "medium" if supported and len(group) >= 20 else "low" if supported else "insufficient",
+               "confidence": "medium" if r24 is not None and len(group) >= 20 else "low" if r24 is not None else "insufficient",
                "screening_result": "PASS" if r24 is not None and r24 <= 5 else "FAIL" if r24 is not None else "UNVERIFIED",
                "model_version": MODEL_VERSION, "source_urls": ",".join(group["source_url"].dropna().astype(str).head(50))}
         valuations.append(row)
         if r24 is not None or r60 is not None:
             returns.append(row.copy())
     nsx_rows = [{"variant": "Acura NSX NA1 3.0 manual, 1991", "physical_vehicle_id": "JH4NA1152MT001527", "date_2024": "2024-10-19", "price_2024_usd": 72000.0, "mileage_2024": 66000, "date_2026": "2026-06-26", "price_2026_usd": 86500.0, "mileage_2026": 68000, "repeat_sale_return_pct": 20.14, "screening_result": "FAIL", "evidence_type": "repeat_sale_supporting_evidence", "source_urls": "https://bringatrailer.com/listing/1991-acura-nsx-253/, https://bringatrailer.com/listing/1991-acura-nsx-305/"}]
+    nsx_rows.extend({"study_type": "hedonic_configuration_adjusted", **v} for v in valuations if "nsx" in v["model_variant"].lower())
     bt = rolling_backtest(frame)
     summary = {"input_row_count": len(raw), "market_evidence_rows": len(frame), "variant_count": len(variants), "supported_24m_returns": sum(v["return_24m_pct"] is not None for v in valuations), "supported_60m_returns": sum(v["return_60m_pct"] is not None for v in valuations), "pass_24m_gate": sum(v["screening_result"] == "PASS" for v in valuations), "fail_24m_gate": sum(v["screening_result"] == "FAIL" for v in valuations), "unverified_24m_gate": sum(v["screening_result"] == "UNVERIFIED" for v in valuations), "qualified_model_opportunities": sum(v["screening_result"] == "PASS" for v in valuations), "historical_gate_enforced": True, "ranking_population": "PASS only", "method_version": MODEL_VERSION}
     return {"summary": summary, "valuations": valuations, "returns": returns, "nsx": nsx_rows, "backtest": bt, "model_metadata": {"model_version": MODEL_VERSION, "baseline_version": BASELINE_VERSION, "alpha": 8.0, "features": ["variant", "time", "log_mileage", "log_mileage_squared", "model_year", "transmission", "engine", "body_style", "trim", "generation", "condition", "modifications", "venue"], "data_snapshot_sha256": hashlib.sha256(raw.to_csv(index=False).encode()).hexdigest()}}
