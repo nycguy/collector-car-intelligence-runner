@@ -38,6 +38,7 @@ def run() -> dict:
         metrics["publication"] = publication
         output_dir.mkdir(parents=True, exist_ok=True)
         (output_dir/"metrics.json").write_text(json.dumps(metrics, indent=2)+"\n")
+        (output_dir/"publication_status.json").write_text(json.dumps(publication, indent=2)+"\n")
         return metrics
     finally:
         input_path.unlink(missing_ok=True)
