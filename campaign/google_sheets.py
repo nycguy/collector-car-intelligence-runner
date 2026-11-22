@@ -113,3 +113,23 @@ def publish_sprint30(spreadsheet_id: str, metrics: dict) -> dict:
              "Sprint 30 Summary":summary}
     results=[_write_rows(service,spreadsheet_id,title,rows) for title,rows in outputs.items()]
     return {"status":"VERIFIED","tabs":results,"input_sha256":metrics.get("input_sha256"),"readback_verified":all(x["readback_verified"] for x in results)}
+
+
+def publish_sprint31(spreadsheet_id: str, metrics: dict) -> dict:
+    service, _ = _service(); now = datetime.now(timezone.utc).isoformat()
+    excluded = {"historical_valuations", "historical_returns", "nsx_valuation_study", "qualified_model_opportunities", "excluded_over_5pct", "unverified_research_queue", "model_validation"}
+    summary = [["execution_id", "published_at_utc", "metric", "value"], *[[metrics.get("execution_id", ""), now, k, json.dumps(v, separators=(",", ":"))] for k, v in sorted(metrics.items()) if k not in excluded]]
+    outputs = {
+        "Sprint 31 Summary": summary,
+        "Standardized Historical Valuations": _records_rows(metrics.get("historical_valuations", [])),
+        "Adjusted 24-Month Returns": _records_rows(metrics.get("historical_returns", [])),
+        "Adjusted 60-Month Returns": _records_rows([r for r in metrics.get("historical_returns", []) if r.get("return_60m_pct") is not None]),
+        "Qualified Model Opportunities": _records_rows(metrics.get("qualified_model_opportunities", [])),
+        "Excluded Over 5pct": _records_rows(metrics.get("excluded_over_5pct", [])),
+        "Unverified Research Queue": _records_rows(metrics.get("unverified_research_queue", [])),
+        "NSX Valuation Study": _records_rows(metrics.get("nsx_valuation_study", [])),
+        "Model Validation": _records_rows(metrics.get("model_validation", {}).get("folds", [])),
+        "Data Confidence": _records_rows([metrics.get("model_metadata", {})]),
+    }
+    results = [_write_rows(service, spreadsheet_id, title, rows) for title, rows in outputs.items()]
+    return {"status": "VERIFIED", "tabs": results, "input_sha256": metrics.get("input_sha256"), "readback_verified": all(x["readback_verified"] for x in results)}
