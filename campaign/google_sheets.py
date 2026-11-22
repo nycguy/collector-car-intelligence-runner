@@ -1,5 +1,5 @@
 from __future__ import annotations
-import csv, hashlib, json, os, tempfile, time
+import csv, hashlib, json, math, os, tempfile, time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
@@ -96,4 +96,5 @@ def _records_rows(records: list[dict]) -> list[list[Any]]:
     if not records:
         return [["status","no_records"]]
     keys = sorted({key for record in records for key in record})
-    return [keys] + [[record.get(key) for key in keys] for record in records]
+    return [keys] + [[_sheet_value(record.get(key)) for key in keys] for record in records]
+\n\ndef _sheet_value(value: Any) -> Any:\n    if isinstance(value, float) and not math.isfinite(value):\n        return None\n    return value\n
