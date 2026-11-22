@@ -57,16 +57,43 @@ def _ensure_sheet(service, spreadsheet_id: str, title: str) -> int:
     reply = _retry(lambda: service.spreadsheets().batchUpdate(spreadsheetId=spreadsheet_id, body={"requests":[{"addSheet":{"properties":{"title":title}}}]}).execute())
     return int(reply["replies"][0]["addSheet"]["properties"]["sheetId"])
 
+def _write_rows(service, spreadsheet_id: str, title: str, rows: list[list[Any]]) -> dict:
+    _ensure_sheet(service, spreadsheet_id, title)
+    _retry(lambda: service.spreadsheets().values().clear(spreadsheetId=spreadsheet_id, range=f"'{title}'!A:Z", body={}).execute())
+    _retry(lambda: service.spreadsheets().values().update(spreadsheetId=spreadsheet_id, range=f"'{title}'!A1", valueInputOption="RAW", body={"values": rows}).execute())
+    check = _values(service, spreadsheet_id, title, f"A1:Z{len(rows)}")
+    expected = [list(map(lambda x: "" if x is None else x, row)) for row in rows]
+    got = [row[:len(rows[0])] for row in check]
+    if got != expected:
+        raise RuntimeError(f"publication readback failed for {title}")
+    return {"sheet": title, "row_count": len(check), "readback_verified": True}
+
 def publish_metrics(spreadsheet_id: str, metrics: dict, output_sheet: str = "Sprint 25 Runner Output") -> dict:
-    if output_sheet not in {"Sprint 25 Auth Test", "Sprint 25 Runner Output"}:
+    allowed = {"Sprint 25 Auth Test", "Sprint 25 Runner Output", "Sprint 26 Summary"}
+    if output_sheet not in allowed:
         raise ValueError("output tab is not authorized")
     service, _ = _service()
-    _ensure_sheet(service, spreadsheet_id, output_sheet)
     now = datetime.now(timezone.utc).isoformat()
     rows = [["execution_id","published_at_utc","metric","value"], *[[metrics.get("execution_id",""),now,k,json.dumps(v, separators=(",",":"))] for k,v in sorted(metrics.items())]]
-    _retry(lambda: service.spreadsheets().values().clear(spreadsheetId=spreadsheet_id, range=f"'{output_sheet}'!A:D", body={}).execute())
-    _retry(lambda: service.spreadsheets().values().update(spreadsheetId=spreadsheet_id, range=f"'{output_sheet}'!A1", valueInputOption="RAW", body={"values":rows}).execute())
-    check = _values(service, spreadsheet_id, output_sheet, f"A1:D{len(rows)}")
-    if check != rows:
-        raise RuntimeError("publication readback failed: cell content mismatch")
-    return {"status":"VERIFIED","sheet":output_sheet,"row_count":len(check),"input_sha256":metrics.get("input_sha256"),"readback_verified":True}
+    result = _write_rows(service, spreadsheet_id, output_sheet, rows)
+    result.update({"status":"VERIFIED","input_sha256":metrics.get("input_sha256")})
+    return result
+
+def publish_sprint26(spreadsheet_id: str, metrics: dict) -> dict:
+    service, _ = _service()
+    now = datetime.now(timezone.utc).isoformat()
+    summary_rows = [["execution_id","published_at_utc","metric","value"], *[[metrics.get("execution_id",""),now,k,json.dumps(v, separators=(",",":"))] for k,v in sorted(metrics.items()) if k not in {"valuation_evidence","five_year_forecasts","model_opportunities","individual_purchase_opportunities"}]]
+    outputs = {"Sprint 26 Summary": summary_rows}
+    outputs["Eligibility Diagnostics"] = [["reason","count"], *[[k,v] for k,v in sorted(metrics.get("eligibility_reason_counts", {}).items())]]
+    outputs["Valuation Evidence"] = _records_rows(metrics.get("valuation_evidence", []))
+    outputs["Five-Year Forecasts"] = _records_rows(metrics.get("five_year_forecasts", []))
+    outputs["Model Opportunities"] = _records_rows(metrics.get("model_opportunities", []))
+    outputs["Individual Purchase Opportunities"] = _records_rows(metrics.get("individual_purchase_opportunities", []))
+    results = [_write_rows(service, spreadsheet_id, title, rows) for title, rows in outputs.items()]
+    return {"status":"VERIFIED","tabs":results,"input_sha256":metrics.get("input_sha256"),"readback_verified":all(x["readback_verified"] for x in results)}
+
+def _records_rows(records: list[dict]) -> list[list[Any]]:
+    if not records:
+        return [["status","no_records"]]
+    keys = sorted({key for record in records for key in record})
+    return [keys] + [[record.get(key) for key in keys] for record in records]
