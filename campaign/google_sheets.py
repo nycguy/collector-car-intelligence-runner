@@ -92,13 +92,17 @@ def publish_sprint29(spreadsheet_id: str, metrics: dict) -> dict:
     results=[_write_rows(service,spreadsheet_id,title,rows) for title,rows in outputs.items()]
     return {"status":"VERIFIED","tabs":results,"input_sha256":metrics.get("input_sha256"),"readback_verified":all(x["readback_verified"] for x in results)}
 
+def _fixed_research_rows(records: list[dict]) -> list[list[Any]]:
+    keys=["manufacturer","model","generation","model_variant","screening_result","current_adjusted_value_usd","prior24_adjusted_value_usd","prior60_adjusted_value_usd","return_24m_pct","return_60m_pct","comparable_sale_count","data_confidence","research_priority","evidence_gap","supporting_source_urls"]
+    return [keys]+[[_sheet_value(record.get(key)) for key in keys] for record in records] if records else [["status","no_records"]]
+
 def publish_sprint30(spreadsheet_id: str, metrics: dict) -> dict:
     service,_=_service(); now=datetime.now(timezone.utc).isoformat()
     excluded={"qualified_model_opportunities","excluded_model_variants","unverified_research_queue","historical_valuations","historical_returns","forecast_scenarios","watchlist_audit","nsx_investigation"}
     summary=[["execution_id","published_at_utc","metric","value"],*[[metrics.get("execution_id",""),now,k,json.dumps(v,separators=(",",":"))] for k,v in sorted(metrics.items()) if k not in excluded]]
     outputs={"Qualified Model Opportunities":_records_rows(metrics.get("qualified_model_opportunities",[])),
              "Excluded Over 5pct":_records_rows(metrics.get("excluded_model_variants",[])),
-             "Unverified Research Queue":_records_rows(metrics.get("unverified_research_queue",[])),
+             "Unverified Research Queue":_fixed_research_rows(metrics.get("unverified_research_queue",[])),
              "Historical Valuations":_records_rows(metrics.get("historical_valuations",[])),
              "Historical Returns":_records_rows(metrics.get("historical_returns",[])),
              "Five-Year Forecasts":_records_rows(metrics.get("forecast_scenarios",[])),
