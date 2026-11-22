@@ -38,11 +38,19 @@ def _ensure_sheet(service, spreadsheet_id: str, title: str) -> int:
         if item["properties"]["title"]==title: return int(item["properties"]["sheetId"])
     reply=_retry(lambda: service.spreadsheets().batchUpdate(spreadsheetId=spreadsheet_id,body={"requests":[{"addSheet":{"properties":{"title":title}}}]}).execute())
     return int(reply["replies"][0]["addSheet"]["properties"]["sheetId"])
+def _column_letter(number: int) -> str:
+    result = ""
+    while number:
+        number, remainder = divmod(number - 1, 26)
+        result = chr(65 + remainder) + result
+    return result
+
+
 def _write_rows(service, spreadsheet_id: str, title: str, rows: list[list[Any]]) -> dict:
     _ensure_sheet(service,spreadsheet_id,title)
     _retry(lambda: service.spreadsheets().values().clear(spreadsheetId=spreadsheet_id,range=f"'{title}'!A:Z",body={}).execute())
     _retry(lambda: service.spreadsheets().values().update(spreadsheetId=spreadsheet_id,range=f"'{title}'!A1",valueInputOption="RAW",body={"values":rows}).execute())
-    check=_values(service,spreadsheet_id,title,f"A1:Z{len(rows)}"); expected=[list(map(lambda x:"" if x is None else x,row)) for row in rows]; got=[(row+[""]*len(rows[0]))[:len(rows[0])] for row in check]
+    check=_values(service,spreadsheet_id,title,f"A1:{_column_letter(len(rows[0]))}{len(rows)}"); expected=[list(map(lambda x:"" if x is None else x,row)) for row in rows]; got=[(row+[""]*len(rows[0]))[:len(rows[0])] for row in check]
     def _cell_equal(a: Any, b: Any) -> bool:
         if a in (None, "") and b in (None, ""): return True
         try:
