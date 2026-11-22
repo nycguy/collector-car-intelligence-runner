@@ -28,6 +28,8 @@ def execute(input_path: str, output_dir: str, snapshot_id: str,
         raise ValueError("blank or duplicate transaction_id detected")
     result = analyze(raw, as_of=as_of, min_comparables=5)
     summary = result["summary"]
+    valuation_rows = result["valuation"]
+    exploratory_counts = {"current": sum(int(r.get("current_comparables", 0) >= 5) for r in valuation_rows), "24m": sum(bool(r.get("supported_24m")) for r in valuation_rows), "60m": sum(bool(r.get("supported_60m")) for r in valuation_rows), "historical_screen": sum(bool(r.get("supported_24m")) and (r.get("return_24m_pct") is not None) and r["return_24m_pct"] <= 5 for r in valuation_rows)}
     reason_counts = (
         pd.Series([r["eligibility_reason"] for r in result["row_audit"]])
         .value_counts().sort_index().to_dict()
@@ -55,6 +57,8 @@ def execute(input_path: str, output_dir: str, snapshot_id: str,
         "model_ranking_status": "blocked_without_verified_individual_purchase_population",
         "individual_ranking_status": "no_active_listing_population",
         "raw_rows_written_to_artifacts": False,
+        "valuation_engine_executed": True,
+        "exploratory_unadjusted_counts": exploratory_counts,
         "reconciliation_status": "Sprint 25 exploratory zeroes are not comparable to prior dashboard counts; Sprint 26 publishes only evidence-supported adjusted cohorts.",
     }
     out = Path(output_dir)
