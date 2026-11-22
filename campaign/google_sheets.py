@@ -42,7 +42,7 @@ def _write_rows(service, spreadsheet_id: str, title: str, rows: list[list[Any]])
     _ensure_sheet(service,spreadsheet_id,title)
     _retry(lambda: service.spreadsheets().values().clear(spreadsheetId=spreadsheet_id,range=f"'{title}'!A:Z",body={}).execute())
     _retry(lambda: service.spreadsheets().values().update(spreadsheetId=spreadsheet_id,range=f"'{title}'!A1",valueInputOption="RAW",body={"values":rows}).execute())
-    check=_values(service,spreadsheet_id,title,f"A1:Z{len(rows)}"); expected=[list(map(lambda x:"" if x is None else x,row)) for row in rows]; got=[row[:len(rows[0])] for row in check]
+    check=_values(service,spreadsheet_id,title,f"A1:Z{len(rows)}"); expected=[list(map(lambda x:"" if x is None else x,row)) for row in rows]; got=[(row+[""]*len(rows[0]))[:len(rows[0])] for row in check]
     if got!=expected: raise RuntimeError(f"publication readback failed for {title}")
     return {"sheet":title,"row_count":len(check),"readback_verified":True}
 def _records_rows(records: list[dict]) -> list[list[Any]]:
