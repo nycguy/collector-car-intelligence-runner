@@ -182,6 +182,36 @@ def estimate_value(fit: FitResult, variant: str, valuation_date: str, reference:
             "reference_specification": json.dumps(reference or {}, sort_keys=True)}
 
 
+def estimate_values_batch(fit: FitResult, references: dict[str, dict[str, Any]], valuation_date: str) -> dict[str, dict[str, Any]]:
+    """Predict one endpoint for all variants in a single sparse-matrix pass."""
+    rows, groups = [], {}
+    for variant, reference in references.items():
+        group = fit.frame[fit.frame["_variant"] == variant]
+        if group.empty:
+            continue
+        groups[variant] = group
+        rows.append(_reference_row(group, valuation_date, reference))
+    if not rows:
+        return {}
+    prediction_frame = pd.concat(rows, ignore_index=True)
+    predictions = fit.model.predict(_feature_frame(prediction_frame))
+    date = pd.Timestamp(valuation_date)
+    out = {}
+    for idx, variant in enumerate(groups):
+        group = groups[variant]
+        n = len(group)
+        effective_n = float(min(n, max(1.0, n / (1.0 + group["_date"].dt.year.nunique() / 8.0))))
+        value = float(math.exp(float(predictions[idx]) + 0.5 * fit.residual_sigma ** 2))
+        lower, upper = _interval(value, fit.residual_sigma, n, effective_n)
+        within = fit.frame["_date"].min() <= date <= fit.train_end
+        out[variant] = {"variant": variant, "valuation_date": valuation_date, "estimated_value_usd": round(value, 2),
+                        "lower_usd": round(lower, 2), "upper_usd": round(upper, 2), "comparable_sale_count": n,
+                        "effective_sample_size": round(effective_n, 2), "historical_min_date": fit.frame["_date"].min().date().isoformat(),
+                        "historical_max_date": fit.train_end.date().isoformat(), "status": "SUPPORTED" if within and n >= 8 else "UNVERIFIED",
+                        "model_version": MODEL_VERSION, "reference_specification": json.dumps(references[variant], sort_keys=True)}
+    return out
+
+
 def _baseline(group: pd.DataFrame, date: str, reference: dict[str, Any] | None = None) -> float | None:
     x = group[group["_date"].between(pd.Timestamp(date) - pd.Timedelta(days=365), pd.Timestamp(date) + pd.Timedelta(days=365))]
     if x.empty:
@@ -243,10 +273,12 @@ def analyze(raw: pd.DataFrame, as_of: str = ANALYSIS_DATE, top_n: int = 20) -> d
     variants = sorted(frame["_variant"].unique())
     valuations: list[dict[str, Any]] = []
     returns: list[dict[str, Any]] = []
+    references = {variant: _reference_for(frame[frame["_variant"] == variant], variant) for variant in variants}
+    endpoint_values = {d: estimate_values_batch(fit, references, d) for d in ENDPOINTS}
     for variant in variants:
         group = frame[frame["_variant"] == variant]
-        ref = _reference_for(group, variant)
-        ep = {d: estimate_value(fit, variant, d, ref) for d in ENDPOINTS}
+        ref = references[variant]
+        ep = {d: endpoint_values[d].get(variant, {"status": "UNSUPPORTED"}) for d in ENDPOINTS}
         v21, v24, v26 = (ep[d].get("estimated_value_usd") if ep[d].get("status") != "UNSUPPORTED" else None for d in ENDPOINTS)
         supported = all(ep[d].get("status") == "SUPPORTED" for d in ENDPOINTS)
         r24, r60 = (_return(v26, v24), _return(v26, v21)) if supported else (None, None)
