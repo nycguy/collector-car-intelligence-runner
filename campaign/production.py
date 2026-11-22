@@ -1,14 +1,14 @@
 from __future__ import annotations
 import json, os, time
 from pathlib import Path
-from .executor import execute, execute_sprint27
-from .google_sheets import retrieve_transactions, publish_metrics, publish_sprint26, publish_sprint27
+from .executor import execute, execute_sprint27, execute_sprint28
+from .google_sheets import retrieve_transactions, publish_metrics, publish_sprint26, publish_sprint27, publish_sprint28
 
 def run() -> dict:
     started = time.monotonic()
     spreadsheet_id = os.environ["CCI_SPREADSHEET_ID"]
     mode = os.environ.get("CCI_MODE", "auth-test")
-    if mode not in {"auth-test", "production", "sprint26", "sprint27"}:
+    if mode not in {"auth-test", "production", "sprint26", "sprint27", "sprint28"}:
         raise ValueError("unsupported execution mode")
     snapshot_id = os.environ.get("CCI_SNAPSHOT_ID") or f"github-actions-{os.environ.get('GITHUB_RUN_ID','local')}"
     output_dir = Path(os.environ.get("CCI_OUTPUT_DIR", "run-output"))
@@ -18,6 +18,8 @@ def run() -> dict:
             metrics = {"status":"SUCCEEDED","execution_scope":"authentication_test","valuation_engine_executed":False,"analytical_acceptance":False}
         elif mode == "sprint27":
             metrics = execute_sprint27(str(input_path), str(output_dir), snapshot_id, os.environ.get("CCI_ANALYSIS_DATE","2026-11-20"))
+        elif mode == "sprint28":
+            metrics = execute_sprint28(str(input_path), str(output_dir), snapshot_id, os.environ.get("CCI_ANALYSIS_DATE","2026-11-20"))
         else:
             metrics = execute(str(input_path), str(output_dir), snapshot_id, os.environ.get("CCI_ANALYSIS_DATE","2026-11-20"))
         metrics.update({
@@ -37,6 +39,8 @@ def run() -> dict:
             publication = publish_sprint26(spreadsheet_id, metrics)
         elif mode == "sprint27":
             publication = publish_sprint27(spreadsheet_id, metrics)
+        elif mode == "sprint28":
+            publication = publish_sprint28(spreadsheet_id, metrics)
         else:
             publication = publish_metrics(spreadsheet_id, metrics, "Sprint 25 Runner Output")
         metrics["publication"] = publication
