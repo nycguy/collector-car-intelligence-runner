@@ -6,6 +6,7 @@ from pathlib import Path
 import pandas as pd
 from .analysis.sprint26 import analyze as analyze_sprint26
 from .analysis.sprint27 import analyze as analyze_sprint27
+from .analysis.sprint28 import analyze as analyze_sprint28
 
 REQUIRED_COLUMNS = {
     "transaction_id", "vehicle_variant_id", "source_id", "auction_end_date",
@@ -94,6 +95,37 @@ def execute_sprint27(input_path: str, output_dir: str, snapshot_id: str,
         "reconciliation_status": "Sprint 25 and Sprint 26 counts reconciled by explicit variant-status stages; legacy dashboard values remain quarantined.",
     }
     public_metrics = {k: v for k, v in metrics.items() if k not in {"valuation_evidence", "market_evidence_valuation", "historical_returns", "model_opportunities", "individual_purchase_opportunities"}}
+    public_metrics["private_workbook_records_published"] = True
+    (out / "metrics.json").write_text(json.dumps(public_metrics, indent=2) + "\n")
+    return metrics
+
+def execute_sprint28(input_path: str, output_dir: str, snapshot_id: str,
+                     as_of: str = "2026-11-20") -> dict:
+    source, raw = _read_source(input_path)
+    result = analyze_sprint28(raw, as_of=as_of, min_comparables=5)
+    summary = result["summary"]
+    out = Path(output_dir); out.mkdir(parents=True, exist_ok=True)
+    metrics = {
+        "status": "SUCCEEDED", "execution_scope": "sprint_28_evidence_recovery",
+        "snapshot_id": snapshot_id, "analysis_date": as_of,
+        "extracted_at_utc": datetime.now(timezone.utc).isoformat(),
+        "input_row_count": len(raw), "input_sha256": sha256_file(source), **summary,
+        "title_evidence_classification": result["title_counts"],
+        "variant_recovery_classification": result["variant_counts"],
+        "deterministic_source_label_clusters": result["source_label_clusters"],
+        "source_research_priority": result["source_priority"],
+        "historical_endpoint_diagnostics": result["endpoint_diagnostics"],
+        "strict_endpoint_diagnostics": result["strict_endpoint_diagnostics"],
+        "legacy_valuation_reconciliation": result["legacy_reconciliation"],
+        "row_audit": result["row_audit"],
+        "backtesting": {"status": "not_validated", "valid_oos_observations": 0, "reason": "Endpoint diagnostics are not promoted without documentary clean title and strict canonical variant support."},
+        "model_opportunities": [], "individual_purchase_opportunities": [],
+        "model_ranking_status": "blocked_without_documentary_clean_strict_endpoint_pairs",
+        "individual_ranking_status": "blocked_without_vehicle_specific_due_diligence",
+        "raw_rows_written_to_artifacts": False, "valuation_engine_executed": True,
+        "reconciliation_status": "Legacy counts remain quarantined; Sprint 28 distinguishes source-reported clean title, documentary evidence, deterministic source labels, and strict canonical variants.",
+    }
+    public_metrics = {k: v for k, v in metrics.items() if k not in {"row_audit", "historical_endpoint_diagnostics", "strict_endpoint_diagnostics", "model_opportunities", "individual_purchase_opportunities"}}
     public_metrics["private_workbook_records_published"] = True
     (out / "metrics.json").write_text(json.dumps(public_metrics, indent=2) + "\n")
     return metrics

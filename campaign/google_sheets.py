@@ -131,3 +131,26 @@ def publish_sprint27(spreadsheet_id: str, metrics: dict) -> dict:
     results = [_write_rows(service, spreadsheet_id, title, rows) for title, rows in outputs.items()]
     return {"status": "VERIFIED", "tabs": results, "input_sha256": metrics.get("input_sha256"),
             "readback_verified": all(item["readback_verified"] for item in results)}
+
+def publish_sprint28(spreadsheet_id: str, metrics: dict) -> dict:
+    """Publish evidence classifications and endpoint diagnostics with readback."""
+    service, _ = _service()
+    now = datetime.now(timezone.utc).isoformat()
+    summary = [["execution_id", "published_at_utc", "metric", "value"],
+               *[[metrics.get("execution_id", ""), now, k, json.dumps(v, separators=(",", ":"))]
+                 for k, v in sorted(metrics.items())
+                 if k not in {"row_audit", "historical_endpoint_diagnostics", "strict_endpoint_diagnostics", "model_opportunities", "individual_purchase_opportunities"}]]
+    outputs = {
+        "Sprint 28 Summary": summary,
+        "Sprint 28 Title Evidence": _records_rows(metrics.get("title_evidence_classification", [])),
+        "Sprint 28 Variant Recovery": _records_rows(metrics.get("variant_recovery_classification", [])),
+        "Sprint 28 Endpoint Diagnostics": _records_rows(metrics.get("historical_endpoint_diagnostics", [])),
+        "Sprint 28 Strict Endpoints": _records_rows(metrics.get("strict_endpoint_diagnostics", [])),
+        "Sprint 28 Legacy Reconciliation": _records_rows(metrics.get("legacy_valuation_reconciliation", [])),
+        "Sprint 28 Source Priority": _records_rows(metrics.get("source_research_priority", [])),
+        "Sprint 28 Quality": _records_rows(metrics.get("deterministic_source_label_clusters", [])),
+        "Sprint 28 Row Audit": _records_rows(metrics.get("row_audit", [])),
+    }
+    results = [_write_rows(service, spreadsheet_id, title, rows) for title, rows in outputs.items()]
+    return {"status": "VERIFIED", "tabs": results, "input_sha256": metrics.get("input_sha256"),
+            "readback_verified": all(item["readback_verified"] for item in results)}
