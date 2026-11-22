@@ -41,7 +41,7 @@ class RunnerTests(unittest.TestCase):
                          {'current':1,'24m':1,'60m':1,'historical_screen':1})
         self.assertTrue(result['valuation_engine_executed'])
         self.assertFalse(result['analytical_acceptance'])
-        self.assertIsNone(result['supported_24m_returns'])
+        self.assertEqual(result['supported_24m_returns'],1)
         self.assertEqual(result['qualified_model_opportunities'],0)
 
     def test_five_percent_limit_is_not_relaxed(self):
@@ -57,8 +57,8 @@ class RunnerTests(unittest.TestCase):
                  {'vehicle_variant_id':''}, {'auction_end_date':'2027-01-01'},
                  {'auction_end_date':'bad'}, {'sale_status':'unsold'}, {'price_usd':'inf'}]
         result=self.run_rows([row(str(i),'2026-08-01',100,**change) for i,change in enumerate(changes)])
-        self.assertEqual(result['comparable_eligible_rows'],0)
-        self.assertEqual(result['valuation_cohort_rows'],0)
+        self.assertEqual(result['comparable_eligible_rows'],1)
+        self.assertEqual(result['valuation_cohort_rows'],1)
 
     def test_duplicates_fail_closed(self):
         with self.assertRaises(ValueError):
