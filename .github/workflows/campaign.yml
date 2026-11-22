@@ -3,10 +3,10 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "Authentication test, legacy exploratory run, or Sprint 26 analytical production"
+        description: "Authentication test, legacy run, Sprint 26, or Sprint 27 historical recovery"
         type: choice
-        options: [auth-test, production, sprint26]
-        default: sprint26
+        options: [auth-test, production, sprint26, sprint27]
+        default: sprint27
         required: true
       snapshot_id:
         description: "Snapshot identifier; generated from run ID when omitted"

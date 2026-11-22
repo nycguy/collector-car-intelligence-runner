@@ -1,14 +1,14 @@
 from __future__ import annotations
 import json, os, time
 from pathlib import Path
-from .executor import execute
-from .google_sheets import retrieve_transactions, publish_metrics, publish_sprint26
+from .executor import execute, execute_sprint27
+from .google_sheets import retrieve_transactions, publish_metrics, publish_sprint26, publish_sprint27
 
 def run() -> dict:
     started = time.monotonic()
     spreadsheet_id = os.environ["CCI_SPREADSHEET_ID"]
     mode = os.environ.get("CCI_MODE", "auth-test")
-    if mode not in {"auth-test", "production", "sprint26"}:
+    if mode not in {"auth-test", "production", "sprint26", "sprint27"}:
         raise ValueError("unsupported execution mode")
     snapshot_id = os.environ.get("CCI_SNAPSHOT_ID") or f"github-actions-{os.environ.get('GITHUB_RUN_ID','local')}"
     output_dir = Path(os.environ.get("CCI_OUTPUT_DIR", "run-output"))
@@ -16,6 +16,8 @@ def run() -> dict:
     try:
         if mode == "auth-test":
             metrics = {"status":"SUCCEEDED","execution_scope":"authentication_test","valuation_engine_executed":False,"analytical_acceptance":False}
+        elif mode == "sprint27":
+            metrics = execute_sprint27(str(input_path), str(output_dir), snapshot_id, os.environ.get("CCI_ANALYSIS_DATE","2026-11-20"))
         else:
             metrics = execute(str(input_path), str(output_dir), snapshot_id, os.environ.get("CCI_ANALYSIS_DATE","2026-11-20"))
         metrics.update({
@@ -33,11 +35,13 @@ def run() -> dict:
             publication = publish_metrics(spreadsheet_id, metrics, "Sprint 25 Auth Test")
         elif mode == "sprint26":
             publication = publish_sprint26(spreadsheet_id, metrics)
+        elif mode == "sprint27":
+            publication = publish_sprint27(spreadsheet_id, metrics)
         else:
             publication = publish_metrics(spreadsheet_id, metrics, "Sprint 25 Runner Output")
         metrics["publication"] = publication
         output_dir.mkdir(parents=True, exist_ok=True)
-        public_metrics = {k: v for k, v in metrics.items() if k not in {"valuation_evidence", "five_year_forecasts", "model_opportunities", "individual_purchase_opportunities"}}
+        public_metrics = {k: v for k, v in metrics.items() if k not in {"valuation_evidence", "market_evidence_valuation", "historical_returns", "five_year_forecasts", "model_opportunities", "individual_purchase_opportunities"}}
         public_metrics["private_workbook_records_published"] = True
         (output_dir/"metrics.json").write_text(json.dumps(public_metrics, indent=2)+"\n")
         (output_dir/"publication_status.json").write_text(json.dumps(publication, indent=2)+"\n")
