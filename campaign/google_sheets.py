@@ -50,7 +50,9 @@ def _records_rows(records: list[dict]) -> list[list[Any]]:
     keys=sorted({key for record in records for key in record})
     return [keys]+[[_sheet_value(record.get(key)) for key in keys] for record in records]
 def _sheet_value(value: Any) -> Any:
-    if isinstance(value,float) and not math.isfinite(value): return None
+    if value is None: return None
+    if isinstance(value, (list, dict)): return json.dumps(value, separators=(",",":"))
+    if isinstance(value, float) and not math.isfinite(value): return None
     return value
 def publish_metrics(spreadsheet_id: str, metrics: dict, output_sheet: str = "Sprint 25 Runner Output") -> dict:
     allowed={"Sprint 25 Auth Test","Sprint 25 Runner Output","Sprint 26 Summary"}
