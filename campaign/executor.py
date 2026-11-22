@@ -63,5 +63,7 @@ def execute(input_path: str, output_dir: str, snapshot_id: str,
     }
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
-    (out / "metrics.json").write_text(json.dumps(metrics, indent=2) + "\n")
+    public_metrics = {k: v for k, v in metrics.items() if k not in {"valuation_evidence", "five_year_forecasts", "model_opportunities", "individual_purchase_opportunities"}}
+    public_metrics["private_workbook_records_published"] = True
+    (out / "metrics.json").write_text(json.dumps(public_metrics, indent=2) + "\n")
     return metrics
