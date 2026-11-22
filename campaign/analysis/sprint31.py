@@ -112,6 +112,12 @@ def fit_model(frame: pd.DataFrame, train_end: str | None = None, alpha: float = 
         ("cat", Pipeline([("impute", SimpleImputer(strategy="most_frequent")), ("onehot", OneHotEncoder(handle_unknown="ignore"))]), categorical),
     ])
     model = Pipeline([("features", pre), ("ridge", Ridge(alpha=alpha))])
+    # A wholly absent field must still have a deterministic column.  Otherwise
+    # SimpleImputer drops it and emits a warning for every sparse endpoint.
+    train = train.copy()
+    for col in numeric:
+        if not train[col].notna().any():
+            train[col] = 0.0
     X = _feature_frame(train)
     model.fit(X, train["_price_log"])
     residual = train["_price_log"].to_numpy() - model.predict(X)
