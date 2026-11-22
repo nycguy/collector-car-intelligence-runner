@@ -6,7 +6,7 @@ from sprint31 import MODEL_VERSION, analyze, estimate_value, fit_model, prepare_
 def _rows():
     rows = []
     for year, variant, trans, mult in [(1991, "NSX-NA1", "5-speed manual", 1.0), (1991, "NSX-NA1", "automatic", 0.82), (2002, "NSX-NA2", "6-speed manual", 1.35)]:
-        for i, date in enumerate(pd.date_range("2021-01-01", "2026-10-01", periods=24)):
+        for i, date in enumerate(pd.date_range("2021-01-01", "2026-11-20", periods=24)):
             rows.append({"transaction_id": f"{variant}-{trans}-{i}", "vehicle_variant_id": variant, "source_variant_id": variant, "source_name": "test", "source_url": f"https://example/{i}", "sale_status": "completed", "price_usd": 70000 * mult * (1 + 0.015 * i), "auction_end_date": date.date().isoformat(), "mileage_at_sale": 40000 + 1000 * i, "model_year": year, "transmission": trans, "condition_grade": "excellent", "title_status": "clean", "title_evidence_status": "source_reported_clean", "engine": "3.0" if year == 1991 else "3.2", "body_style": "coupe", "trim": "base", "generation": "NA1" if year == 1991 else "NA2", "modifications": "stock"})
     return pd.DataFrame(rows)
 
