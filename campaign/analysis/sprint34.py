@@ -183,3 +183,22 @@ def vertical_slice(frame: pd.DataFrame) -> pd.DataFrame:
     out = recover_identity(frame)
     families = {"bmw_e30_m3", "honda_s2000_ap1", "honda_s2000_ap2", "porsche_944_turbo", "acura_nsx_na1_30_manual", "acura_nsx_na1_30_auto", "dodge_viper_gen1_rt10"}
     return out[out["canonical_variant_id"].isin(families)].copy()
+
+
+def analyze(frame: pd.DataFrame) -> dict[str, Any]:
+    recovered = recover_identity(frame)
+    slice_frame = vertical_slice(frame)
+    summary = summarize(frame)
+    summary.update({
+        "vertical_slice_rows": int(len(slice_frame)),
+        "vertical_slice_variants": int(slice_frame["canonical_variant_id"].nunique()),
+        "vertical_slice_supported_24m_returns": 0,
+        "vertical_slice_supported_60m_returns": 0,
+        "validated_pass_records": 0,
+        "provisional_research_records": int(len(slice_frame)),
+        "individual_purchase_opportunities": 0,
+        "historical_gate_status": "BLOCKED_PENDING_RECALCULATION",
+        "raw_titles_present": bool("original_listing_title" in recovered.columns and recovered["original_listing_title"].fillna("").astype(str).str.strip().ne("").any()),
+        "raw_descriptions_present": bool("original_description" in recovered.columns and recovered["original_description"].fillna("").astype(str).str.strip().ne("").any()),
+    })
+    return {"summary": summary, "recovered": recovered, "vertical_slice": slice_frame}
