@@ -145,9 +145,14 @@ def enrich_identity(frame: pd.DataFrame, decoded: dict[str, dict[str, Any]]) -> 
     out["vin_decoded_model"] = decoded_model.replace("", pd.NA)
     out["vin_decoded_model_year"] = decoded_year.replace("", pd.NA)
     out["vin_identity_evidence"] = out.apply(
-        lambda r: "cross_validated" if r.get("vin_decoded_make") and r.get("inferred_manufacturer")
-        and str(r.get("vin_decoded_make")).lower() == str(r.get("inferred_manufacturer")).lower()
-        else ("directly_decoded" if r.get("vin_decoded_make") else "unverified"), axis=1)
+        lambda r: "cross_validated" if (
+            pd.notna(r.get("vin_decoded_make")) and str(r.get("vin_decoded_make")).strip()
+            and pd.notna(r.get("inferred_manufacturer")) and str(r.get("inferred_manufacturer")).strip()
+            and str(r.get("vin_decoded_make")).lower() == str(r.get("inferred_manufacturer")).lower()
+        ) else (
+            "directly_decoded" if pd.notna(r.get("vin_decoded_make")) and str(r.get("vin_decoded_make")).strip()
+            else "unverified"
+        ), axis=1)
     out["recovered_manufacturer"] = out["inferred_manufacturer"].fillna(out["vin_decoded_make"])
     out["recovered_model"] = out["inferred_model"].fillna(out["vin_decoded_model"])
     out["identity_recovery_status"] = out.apply(
