@@ -31,7 +31,12 @@ def retrieve_transactions(spreadsheet_id: str, sheet: str = "Auction Transaction
         writer=csv.DictWriter(handle,fieldnames=TRANSACTION_COLUMNS); writer.writeheader()
         for row in data:
             padded=list(row)+[""]*(len(TRANSACTION_COLUMNS)-len(row)); writer.writerow(dict(zip(TRANSACTION_COLUMNS,padded[:len(TRANSACTION_COLUMNS)])))
-    return path, {"project":project,"sheet":sheet,"range":cell_range,"row_count":len(data),"input_sha256":hashlib.sha256(path.read_bytes()).hexdigest()}
+    legacy_rows = _values(service, spreadsheet_id, "Adjusted 24-Month Returns", "A1:Q2000")
+    legacy_records = []
+    if legacy_rows:
+        legacy_header = legacy_rows[0]
+        legacy_records = [dict(zip(legacy_header, row + [""] * (len(legacy_header) - len(row)))) for row in legacy_rows[1:] if any(str(x).strip() for x in row)]
+    return path, {"project":project,"sheet":sheet,"range":cell_range,"row_count":len(data),"input_sha256":hashlib.sha256(path.read_bytes()).hexdigest(),"sprint32_pass_records":[r for r in legacy_records if str(r.get("screening_result","")).upper()=="PASS"]}
 def _ensure_sheet(service, spreadsheet_id: str, title: str) -> int:
     meta=_retry(lambda: service.spreadsheets().get(spreadsheetId=spreadsheet_id,fields="sheets.properties").execute())
     for item in meta.get("sheets",[]):
@@ -221,3 +226,23 @@ def publish_sprint32(spreadsheet_id: str, metrics: dict) -> dict:
     }
     results = [_write_rows(service, spreadsheet_id, title, rows) for title, rows in outputs.items()]
     return {"status": "VERIFIED", "tabs": results, "input_sha256": metrics.get("input_sha256"), "readback_verified": all(x["readback_verified"] for x in results)}
+
+
+def publish_sprint35(spreadsheet_id: str, metrics: dict) -> dict:
+    outputs = {
+        "Sprint 35 Summary": [["metric","value"], *[[k, _sheet_value(metrics.get(k))] for k in sorted(metrics) if not isinstance(metrics.get(k), (list, dict))]],
+        "VIN Quality Audit": _records_rows([metrics.get("vin_quality_audit", {})]),
+        "VIN Decode Coverage": _records_rows([metrics.get("vin_decode_coverage", {})]),
+        "Canonical Variant Coverage": _records_rows([{"verified_canonical_variants": metrics.get("verified_canonical_variants"), "usable_manufacturer": metrics.get("usable_manufacturer"), "usable_model": metrics.get("usable_model"), "identity_quality_eligible_rows": metrics.get("identity_quality_eligible_rows")}]),
+        "Identity Conflicts": _records_rows(metrics.get("identity_conflicts", [])),
+        "Sprint 32 PASS Crosswalk": _records_rows(metrics.get("sprint32_pass_crosswalk", [])),
+        "Historical Valuations": _records_rows(metrics.get("historical_valuations", [])),
+        "Adjusted 24-Month Returns": _records_rows([r for r in metrics.get("historical_returns", []) if r.get("return_24m_pct") is not None]),
+        "Adjusted 60-Month Returns": _records_rows([r for r in metrics.get("historical_returns", []) if r.get("return_60m_pct") is not None]),
+        "Qualified Model Opportunities": _records_rows(metrics.get("qualified_model_opportunities", [])),
+        "Unverified Research Queue": _records_rows(metrics.get("provisional_research_queue", [])),
+        "Individual Purchase Opportunities": _records_rows(metrics.get("individual_purchase_opportunities", [])),
+        "Investment Dashboard": [["metric","value"],["execution_scope",metrics.get("execution_scope")],["status",metrics.get("status")],["validated_24_month_returns",metrics.get("validated_24_month_returns",0)],["validated_60_month_returns",metrics.get("validated_60_month_returns",0)],["ranking_status",metrics.get("ranking_status")]],
+    }
+    results = [_write_rows(_service()[0], spreadsheet_id, title, rows) for title, rows in outputs.items()]
+    return {"status":"VERIFIED","tabs":results,"input_sha256":metrics.get("input_sha256"),"readback_verified":all(x["readback_verified"] for x in results)}
