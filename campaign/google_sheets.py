@@ -141,3 +141,28 @@ def publish_sprint31(spreadsheet_id: str, metrics: dict) -> dict:
     }
     results = [_write_rows(service, spreadsheet_id, title, rows) for title, rows in outputs.items()]
     return {"status": "VERIFIED", "tabs": results, "input_sha256": metrics.get("input_sha256"), "readback_verified": all(x["readback_verified"] for x in results)}
+
+
+def publish_sprint32(spreadsheet_id: str, metrics: dict) -> dict:
+    service, _ = _service(); now = datetime.now(timezone.utc).isoformat()
+    excluded = {"historical_valuations", "historical_returns", "nsx_valuation_study", "qualified_model_opportunities", "excluded_over_5pct", "unverified_research_queue", "model_validation", "data_coverage"}
+    summary = [["execution_id", "published_at_utc", "metric", "value"], *[
+        [metrics.get("execution_id", ""), now, k, json.dumps(v, separators=(",", ":"))]
+        for k, v in sorted(metrics.items()) if k not in excluded]]
+    outputs = {
+        "Investment Dashboard": summary,
+        "Qualified Model Opportunities": _records_rows(metrics.get("qualified_model_opportunities", [])),
+        "Individual Purchase Opportunities": _records_rows(metrics.get("individual_purchase_opportunities", [])),
+        "Excluded Over 5pct": _records_rows(metrics.get("excluded_over_5pct", [])),
+        "Unverified Research Queue": _records_rows(metrics.get("unverified_research_queue", [])),
+        "Historical Valuations": _records_rows(metrics.get("historical_valuations", [])),
+        "Adjusted 24-Month Returns": _records_rows([r for r in metrics.get("historical_returns", []) if r.get("return_24m_pct") is not None]),
+        "Adjusted 60-Month Returns": _records_rows([r for r in metrics.get("historical_returns", []) if r.get("return_60m_pct") is not None]),
+        "NSX Valuation Study": _records_rows(metrics.get("nsx_valuation_study", [])),
+        "Comparable Sales": _records_rows(metrics.get("historical_valuations", [])),
+        "Model Backtesting": _records_rows(metrics.get("model_validation", {}).get("folds", [])),
+        "Data Coverage": _records_rows([metrics.get("data_coverage", {})]),
+        "Research Confidence": _records_rows([metrics.get("model_metadata", {})]),
+    }
+    results = [_write_rows(service, spreadsheet_id, title, rows) for title, rows in outputs.items()]
+    return {"status": "VERIFIED", "tabs": results, "input_sha256": metrics.get("input_sha256"), "readback_verified": all(x["readback_verified"] for x in results)}
