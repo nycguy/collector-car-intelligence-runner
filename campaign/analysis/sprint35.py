@@ -22,7 +22,7 @@ def check_digit_valid(vin: str) -> bool | None:
         return None
     total = 0
     for char, weight in zip(vin, WEIGHTS):
-        value = ord(char) - 55 if char.isalpha() else int(char)
+        transliteration = {"A":1,"B":2,"C":3,"D":4,"E":5,"F":6,"G":7,"H":8,"J":1,"K":2,"L":3,"M":4,"N":5,"P":7,"R":9,"S":2,"T":3,"U":4,"V":5,"W":6,"X":7,"Y":8,"Z":9}\n        value = transliteration[char] if char.isalpha() else int(char)
         total += value * weight
     expected = "X" if total % 11 == 10 else str(total % 11)
     return vin[8] == expected
