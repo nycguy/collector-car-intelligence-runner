@@ -22,12 +22,7 @@ def check_digit_valid(vin: str) -> bool | None:
         return None
     total = 0
     for char, weight in zip(vin, WEIGHTS):
-        transliteration = {
-            "A": 1, "B": 2, "C": 3, "D": 4, "E": 5, "F": 6, "G": 7, "H": 8,
-            "J": 1, "K": 2, "L": 3, "M": 4, "N": 5, "P": 7, "R": 9,
-            "S": 2, "T": 3, "U": 4, "V": 5, "W": 6, "X": 7, "Y": 8, "Z": 9,
-        }
-        value = transliteration[char] if char.isalpha() else int(char)
+        value = ord(char) - 55 if char.isalpha() else int(char)
         total += value * weight
     expected = "X" if total % 11 == 10 else str(total % 11)
     return vin[8] == expected
@@ -77,16 +72,24 @@ def audit_vins(frame: pd.DataFrame) -> dict[str, Any]:
 def _decode_batch(vins: list[str]) -> list[dict[str, Any]]:
     if not vins:
         return []
-    response = requests.post(
-        "https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVINValuesBatch/",
-        data={"format": "json", "data": ";".join(vins)},
-        timeout=15,
-    )
-    response.raise_for_status()
-    payload = response.json()
-    return payload.get("Results", [])
+    last_error = None
+    for attempt in range(4):
+        try:
+            response = requests.post(
+                "https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVINValuesBatch/",
+                data={"format": "json", "data": ";".join(vins)},
+                timeout=15,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            return payload.get("Results", [])
+        except Exception as exc:
+            last_error = exc
+            if attempt < 3:
+                time.sleep(2 ** attempt)
+    raise last_error
 
-def decode_vins(frame: pd.DataFrame, output_dir: Path, batch_size: int = 50, max_workers: int = 8) -> tuple[dict[str, dict[str, Any]], dict[str, Any]]:
+def decode_vins(frame: pd.DataFrame, output_dir: Path, batch_size: int = 50, max_workers: int = 4) -> tuple[dict[str, dict[str, Any]], dict[str, Any]]:
     output_dir.mkdir(parents=True, exist_ok=True)
     cache_path = output_dir / "vin_decode_cache.json"
     cache = json.loads(cache_path.read_text()) if cache_path.exists() else {}
