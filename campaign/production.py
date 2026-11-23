@@ -1,14 +1,14 @@
 from __future__ import annotations
 import json, os, time
 from pathlib import Path
-from .executor import execute, execute_sprint27, execute_sprint28, execute_sprint29, execute_sprint30, execute_sprint31, execute_sprint32, execute_sprint34
-from .google_sheets import retrieve_transactions, publish_metrics, publish_sprint26, publish_sprint27, publish_sprint28, publish_sprint29, publish_sprint30, publish_sprint31, publish_sprint32, publish_sprint34
+from .executor import execute, execute_sprint27, execute_sprint28, execute_sprint29, execute_sprint30, execute_sprint31, execute_sprint32, execute_sprint34, execute_sprint35
+from .google_sheets import retrieve_transactions, publish_metrics, publish_sprint26, publish_sprint27, publish_sprint28, publish_sprint29, publish_sprint30, publish_sprint31, publish_sprint32, publish_sprint34, publish_sprint35
 
 def run() -> dict:
     started = time.monotonic()
     spreadsheet_id = os.environ["CCI_SPREADSHEET_ID"]
-    mode = os.environ.get("CCI_MODE", "auth-test")
-    allowed = {"auth-test","production","sprint26","sprint27","sprint28","sprint29","sprint30","sprint31","sprint32","sprint34"}
+    mode = os.environ.get("CCI_MODE", "auth-test").strip()
+    allowed = {"auth-test","production","sprint26","sprint27","sprint28","sprint29","sprint30","sprint31","sprint32","sprint34","sprint35"}
     if mode not in allowed: raise ValueError("unsupported execution mode")
     snapshot_id = os.environ.get("CCI_SNAPSHOT_ID") or f"github-actions-{os.environ.get('GITHUB_RUN_ID','local')}"
     output_dir = Path(os.environ.get("CCI_OUTPUT_DIR", "run-output"))
@@ -23,6 +23,7 @@ def run() -> dict:
         elif mode == "sprint31": metrics = execute_sprint31(str(input_path),str(output_dir),snapshot_id,os.environ.get("CCI_ANALYSIS_DATE","2026-11-20"))
         elif mode == "sprint32": metrics = execute_sprint32(str(input_path),str(output_dir),snapshot_id,os.environ.get("CCI_ANALYSIS_DATE","2026-11-20"))
         elif mode == "sprint34": metrics = execute_sprint34(str(input_path),str(output_dir),snapshot_id,os.environ.get("CCI_ANALYSIS_DATE","2026-11-20"))
+        elif mode == "sprint35": metrics = execute_sprint35(str(input_path),str(output_dir),snapshot_id,os.environ.get("CCI_ANALYSIS_DATE","2026-11-20"),evidence.get("sprint32_pass_records", []))
         else: metrics = execute(str(input_path),str(output_dir),snapshot_id,os.environ.get("CCI_ANALYSIS_DATE","2026-11-20"))
         metrics.update({"execution_id":os.environ.get("GITHUB_RUN_ID","local"),"commit_sha":os.environ.get("GITHUB_SHA"),"run_url":f"https://github.com/{os.environ.get('GITHUB_REPOSITORY','nycguy/collector-car-intelligence-runner')}/actions/runs/{os.environ.get('GITHUB_RUN_ID','local')}","input_snapshot_id":snapshot_id,"production_source":"google-sheets","input_row_count":evidence["row_count"],"input_sha256":evidence["input_sha256"],"google_cloud_project":evidence["project"],"service_account":os.environ.get("CCI_SERVICE_ACCOUNT"),"workload_identity_provider":os.environ.get("CCI_IDENTITY_PROVIDER"),"execution_duration_seconds":round(time.monotonic()-started,3)})
         if mode == "auth-test": publication = publish_metrics(spreadsheet_id,metrics,"Sprint 25 Auth Test")
@@ -34,6 +35,7 @@ def run() -> dict:
         elif mode == "sprint31": publication = publish_sprint31(spreadsheet_id,metrics)
         elif mode == "sprint32": publication = publish_sprint32(spreadsheet_id,metrics)
         elif mode == "sprint34": publication = publish_sprint34(spreadsheet_id,metrics)
+        elif mode == "sprint35": publication = publish_sprint35(spreadsheet_id,metrics)
         else: publication = publish_metrics(spreadsheet_id,metrics,"Sprint 25 Runner Output")
         metrics["publication"] = publication
         output_dir.mkdir(parents=True,exist_ok=True)
