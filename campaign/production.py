@@ -22,6 +22,7 @@ def run() -> dict:
         elif mode == "sprint30": metrics = execute_sprint30(str(input_path),str(output_dir),snapshot_id,os.environ.get("CCI_ANALYSIS_DATE","2026-11-20"))
         elif mode == "sprint31": metrics = execute_sprint31(str(input_path),str(output_dir),snapshot_id,os.environ.get("CCI_ANALYSIS_DATE","2026-11-20"))
         elif mode == "sprint32": metrics = execute_sprint32(str(input_path),str(output_dir),snapshot_id,os.environ.get("CCI_ANALYSIS_DATE","2026-11-20"))
+        elif mode == "sprint34": metrics = execute_sprint34(str(input_path),str(output_dir),snapshot_id,os.environ.get("CCI_ANALYSIS_DATE","2026-11-20"))
         else: metrics = execute(str(input_path),str(output_dir),snapshot_id,os.environ.get("CCI_ANALYSIS_DATE","2026-11-20"))
         metrics.update({"execution_id":os.environ.get("GITHUB_RUN_ID","local"),"commit_sha":os.environ.get("GITHUB_SHA"),"run_url":f"https://github.com/{os.environ.get('GITHUB_REPOSITORY','nycguy/collector-car-intelligence-runner')}/actions/runs/{os.environ.get('GITHUB_RUN_ID','local')}","input_snapshot_id":snapshot_id,"production_source":"google-sheets","input_row_count":evidence["row_count"],"input_sha256":evidence["input_sha256"],"google_cloud_project":evidence["project"],"service_account":os.environ.get("CCI_SERVICE_ACCOUNT"),"workload_identity_provider":os.environ.get("CCI_IDENTITY_PROVIDER"),"execution_duration_seconds":round(time.monotonic()-started,3)})
         if mode == "auth-test": publication = publish_metrics(spreadsheet_id,metrics,"Sprint 25 Auth Test")
