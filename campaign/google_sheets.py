@@ -164,6 +164,20 @@ def publish_sprint31(spreadsheet_id: str, metrics: dict) -> dict:
     return {"status": "VERIFIED", "tabs": results, "input_sha256": metrics.get("input_sha256"), "readback_verified": all(x["readback_verified"] for x in results)}
 
 
+def publish_sprint34(spreadsheet_id: str, metrics: dict) -> dict:
+    service, _ = _service()
+    outputs = {
+        "Sprint 34 Summary": _records_rows([metrics]),
+        "Canonical Variant Coverage": _records_rows([metrics]),
+        "Classification Review Queue": _records_rows(metrics.get("vertical_slice", [])),
+        "Data Quality Audit": _records_rows([metrics]),
+        "Source Lineage": [["field", "status"], ["source", "Google Sheets Auction Transactions"], ["raw_listing_title", "not_present_in_43_column_contract"], ["raw_description", "not_present_in_43_column_contract"], ["source_url", "present"], ["vin", "present_where_captured"], ["mileage", "present_where_captured"]],
+        "Individual Purchase Opportunities": [["status", "none"], ["reason", "vehicle-specific diligence and adjusted purchase valuation not completed"]],
+    }
+    results = [_write_rows(service, spreadsheet_id, title, rows) for title, rows in outputs.items()]
+    return {"status": "VERIFIED", "tabs": results, "readback_verified": all(x["readback_verified"] for x in results), "input_sha256": metrics.get("input_sha256")}
+
+
 def publish_sprint32(spreadsheet_id: str, metrics: dict) -> dict:
     service, _ = _service(); now = datetime.now(timezone.utc).isoformat()
     excluded = {"historical_valuations", "historical_returns", "nsx_valuation_study", "qualified_model_opportunities", "excluded_over_5pct", "unverified_research_queue", "model_validation", "data_coverage"}
