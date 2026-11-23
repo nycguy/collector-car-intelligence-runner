@@ -74,13 +74,13 @@ def _decode_batch(vins: list[str]) -> list[dict[str, Any]]:
     response = requests.post(
         "https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVINValuesBatch/",
         data={"format": "json", "data": ";".join(vins)},
-        timeout=60,
+        timeout=15,
     )
     response.raise_for_status()
     payload = response.json()
     return payload.get("Results", [])
 
-def decode_vins(frame: pd.DataFrame, output_dir: Path, batch_size: int = 50) -> tuple[dict[str, dict[str, Any]], dict[str, Any]]:
+def decode_vins(frame: pd.DataFrame, output_dir: Path, batch_size: int = 50, max_request_errors: int = 3) -> tuple[dict[str, dict[str, Any]], dict[str, Any]]:
     output_dir.mkdir(parents=True, exist_ok=True)
     cache_path = output_dir / "vin_decode_cache.json"
     cache = json.loads(cache_path.read_text()) if cache_path.exists() else {}
