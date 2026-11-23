@@ -1,7 +1,7 @@
 import pandas as pd
 
-from sprint32 import analyze
-from sprint31 import fit_model, prepare_transactions, estimate_value
+from campaign.analysis.sprint32 import analyze
+from campaign.analysis.sprint31 import fit_model, prepare_transactions, estimate_value
 
 def _rows():
     rows = []
