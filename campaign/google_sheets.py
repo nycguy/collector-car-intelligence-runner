@@ -166,17 +166,37 @@ def publish_sprint31(spreadsheet_id: str, metrics: dict) -> dict:
 
 def publish_sprint34(spreadsheet_id: str, metrics: dict) -> dict:
     service, _ = _service()
+    summary_keys = [
+        "status", "execution_scope", "analysis_date", "input_row_count",
+        "input_sha256", "usable_manufacturer", "usable_model",
+        "verified_canonical_variants", "high_confidence_inferred_variants",
+        "provisional_variants", "unclassified_rows", "duplicate_rows_flagged",
+        "repeat_sale_observations", "mileage_complete", "vin_complete",
+        "eligible_identity_rows", "vertical_slice_rows", "vertical_slice_variants",
+        "validated_pass_records", "provisional_research_records",
+        "individual_purchase_opportunities", "historical_gate_status",
+        "raw_titles_present", "raw_descriptions_present",
+    ]
+    summary = {key: metrics.get(key) for key in summary_keys}
+    slice_keys = [
+        "transaction_id", "source_url", "observed_variant_id",
+        "canonical_variant_id", "classification", "classification_confidence",
+        "inferred_manufacturer", "inferred_model", "inferred_generation",
+        "inferred_model_year", "inferred_engine", "inferred_transmission",
+        "identity_quality_gate", "derivation_method",
+    ]
+    slice_rows = [[key for key in slice_keys]]
+    slice_rows.extend([[_sheet_value(record.get(key)) for key in slice_keys] for record in metrics.get("vertical_slice", [])])
     outputs = {
-        "Sprint 34 Summary": _records_rows([metrics]),
-        "Canonical Variant Coverage": _records_rows([metrics]),
-        "Classification Review Queue": _records_rows(metrics.get("vertical_slice", [])),
-        "Data Quality Audit": _records_rows([metrics]),
+        "Sprint 34 Summary": _records_rows([summary]),
+        "Canonical Variant Coverage": _records_rows([summary]),
+        "Classification Review Queue": slice_rows if len(slice_rows) > 1 else [["status", "no_vertical_slice_rows"]],
+        "Data Quality Audit": _records_rows([summary]),
         "Source Lineage": [["field", "status"], ["source", "Google Sheets Auction Transactions"], ["raw_listing_title", "not_present_in_43_column_contract"], ["raw_description", "not_present_in_43_column_contract"], ["source_url", "present"], ["vin", "present_where_captured"], ["mileage", "present_where_captured"]],
         "Individual Purchase Opportunities": [["status", "none"], ["reason", "vehicle-specific diligence and adjusted purchase valuation not completed"]],
     }
     results = [_write_rows(service, spreadsheet_id, title, rows) for title, rows in outputs.items()]
     return {"status": "VERIFIED", "tabs": results, "readback_verified": all(x["readback_verified"] for x in results), "input_sha256": metrics.get("input_sha256")}
-
 
 def publish_sprint32(spreadsheet_id: str, metrics: dict) -> dict:
     service, _ = _service(); now = datetime.now(timezone.utc).isoformat()
