@@ -2,7 +2,7 @@ from __future__ import annotations
 import json, os, time
 from pathlib import Path
 from .executor import execute, execute_sprint27, execute_sprint28, execute_sprint29, execute_sprint30, execute_sprint31, execute_sprint32, execute_sprint34
-from .google_sheets import retrieve_transactions, publish_metrics, publish_sprint26, publish_sprint27, publish_sprint28, publish_sprint29, publish_sprint30, publish_sprint31, publish_sprint32
+from .google_sheets import retrieve_transactions, publish_metrics, publish_sprint26, publish_sprint27, publish_sprint28, publish_sprint29, publish_sprint30, publish_sprint31, publish_sprint32, publish_sprint34
 
 def run() -> dict:
     started = time.monotonic()
