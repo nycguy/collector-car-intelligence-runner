@@ -53,10 +53,20 @@ def _write_rows(service, spreadsheet_id: str, title: str, rows: list[list[Any]])
     check=_values(service,spreadsheet_id,title,f"A1:{_column_letter(len(rows[0]))}{len(rows)}"); expected=[list(map(lambda x:"" if x is None else x,row)) for row in rows]; got=[(row+[""]*len(rows[0]))[:len(rows[0])] for row in check]
     def _cell_equal(a: Any, b: Any) -> bool:
         if a in (None, "") and b in (None, ""): return True
+        if isinstance(a, (int, float, bool)) and isinstance(b, (int, float, bool)):
+            return float(a) == float(b)
+        if isinstance(a, str) and isinstance(b, (int, float, bool)):
+            try: return float(a) == float(b)
+            except (TypeError, ValueError): pass
+        if isinstance(b, str) and isinstance(a, (int, float, bool)):
+            try: return float(a) == float(b)
+            except (TypeError, ValueError): pass
+        sa, sb = str(a).strip(), str(b).strip()
+        if sa == sb: return True
         try:
-            if isinstance(a, (int, float)) and isinstance(b, (int, float)): return float(a) == float(b)
-        except (TypeError, ValueError): pass
-        return str(a) == str(b)
+            return json.loads(sa) == json.loads(sb)
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return False
     if len(got) != len(expected) or any(len(a) != len(b) or any(not _cell_equal(x,y) for x,y in zip(a,b)) for a,b in zip(got,expected)):
         raise RuntimeError(f"publication readback failed for {title}")
     return {"sheet":title,"row_count":len(check),"readback_verified":True}
