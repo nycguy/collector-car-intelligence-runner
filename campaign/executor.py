@@ -12,6 +12,7 @@ from .analysis.sprint30 import analyze as analyze_sprint30
 from .analysis.sprint31 import analyze as analyze_sprint31
 from .analysis.sprint32 import analyze as analyze_sprint32
 from .analysis.sprint34 import analyze as analyze_sprint34
+from .analysis.sprint35 import analyze as analyze_sprint35
 REQUIRED_COLUMNS={"transaction_id","vehicle_variant_id","source_id","auction_end_date","sale_status","price_usd","title_status","exclusion_flag","variant_normalization_status"}
 def sha256_file(path:Path)->str: return hashlib.sha256(path.read_bytes()).hexdigest()
 def _read_source(input_path:str)->tuple[Path,pd.DataFrame]:
@@ -128,4 +129,13 @@ def execute_sprint32(input_path: str, output_dir: str, snapshot_id: str, as_of: 
         "raw_rows_written_to_artifacts": False, "analytical_acceptance": summary["analytical_acceptance"],
     }
     _write_public(Path(output_dir), metrics, {"historical_valuations", "historical_returns", "nsx_valuation_study", "qualified_model_opportunities", "excluded_over_5pct", "unverified_research_queue"})
+    return metrics
+
+
+def execute_sprint35(input_path: str, output_dir: str, snapshot_id: str, as_of: str = "2026-11-20", legacy_pass_records=None) -> dict:
+    source, raw = _read_source(input_path)
+    result = analyze_sprint35(raw, output_dir=output_dir, legacy_pass_records=legacy_pass_records or [])
+    summary = result["summary"]
+    metrics = {"status": "SUCCEEDED", "execution_scope": "sprint_35_vin_identity_recovery", "snapshot_id": snapshot_id, "analysis_date": as_of, "extracted_at_utc": datetime.now(timezone.utc).isoformat(), "input_row_count": len(raw), "input_sha256": sha256_file(source), **summary, "vin_quality_audit": result["audit"], "vin_decode_coverage": result["decode_coverage"], "identity_conflicts": result["identity_conflicts"], "historical_valuations": result["valuations"], "historical_returns": [r for r in result["valuations"] if r.get("return_24m_pct") is not None or r.get("return_60m_pct") is not None], "sprint32_pass_crosswalk": result["crosswalk"], "qualified_model_opportunities": result["model_opportunities"], "provisional_research_queue": result["provisional_queue"], "individual_purchase_opportunities": [], "model_backtesting": {"status": "not_recomputed", "reason": "Sprint 35 canonical endpoint reconstruction uses a separate conservative population and explicitly avoids claiming comparable accuracy"}, "valuation_engine_executed": True, "analytical_acceptance": False, "ranking_gate": "historical_24m_before_forecast_before_ranking", "raw_rows_written_to_artifacts": False}
+    _write_public(Path(output_dir), metrics, {"recovered_rows", "historical_valuations", "historical_returns", "sprint32_pass_crosswalk", "qualified_model_opportunities", "provisional_research_queue", "identity_conflicts"})
     return metrics
