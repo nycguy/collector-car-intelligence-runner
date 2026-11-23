@@ -7,7 +7,7 @@ from .google_sheets import retrieve_transactions, publish_metrics, publish_sprin
 def run() -> dict:
     started = time.monotonic()
     spreadsheet_id = os.environ["CCI_SPREADSHEET_ID"]
-    mode = os.environ.get("CCI_MODE", "auth-test")
+    mode = os.environ.get("CCI_MODE", "auth-test").strip()
     allowed = {"auth-test","production","sprint26","sprint27","sprint28","sprint29","sprint30","sprint31","sprint32","sprint34","sprint35"}
     if mode not in allowed: raise ValueError("unsupported execution mode")
     snapshot_id = os.environ.get("CCI_SNAPSHOT_ID") or f"github-actions-{os.environ.get('GITHUB_RUN_ID','local')}"
