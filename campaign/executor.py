@@ -11,6 +11,7 @@ from .analysis.sprint29 import analyze as analyze_sprint29
 from .analysis.sprint30 import analyze as analyze_sprint30
 from .analysis.sprint31 import analyze as analyze_sprint31
 from .analysis.sprint32 import analyze as analyze_sprint32
+from .analysis.sprint34 import analyze as analyze_sprint34
 REQUIRED_COLUMNS={"transaction_id","vehicle_variant_id","source_id","auction_end_date","sale_status","price_usd","title_status","exclusion_flag","variant_normalization_status"}
 def sha256_file(path:Path)->str: return hashlib.sha256(path.read_bytes()).hexdigest()
 def _read_source(input_path:str)->tuple[Path,pd.DataFrame]:
@@ -85,6 +86,25 @@ def execute_sprint31(input_path: str, output_dir: str, snapshot_id: str, as_of: 
         "analytical_acceptance": False
     }
     _write_public(Path(output_dir), metrics, {"historical_valuations", "historical_returns", "nsx_valuation_study", "qualified_model_opportunities", "excluded_over_5pct", "unverified_research_queue"})
+    return metrics
+
+
+def execute_sprint34(input_path: str, output_dir: str, snapshot_id: str, as_of: str = "2026-11-20") -> dict:
+    source, raw = _read_source(input_path)
+    result = analyze_sprint34(raw)
+    summary = result["summary"]
+    metrics = {
+        "status": "SUCCEEDED", "execution_scope": "sprint_34_identity_recovery",
+        "snapshot_id": snapshot_id, "analysis_date": as_of,
+        "input_row_count": len(raw), "input_sha256": sha256_file(source), **summary,
+        "canonical_variant_rows": result["recovered"].to_dict("records"),
+        "vertical_slice": result["vertical_slice"].to_dict("records"),
+        "qualified_model_opportunities": [], "individual_purchase_opportunities": [],
+        "ranking_status": "blocked_until_canonical_24m_recalculation",
+        "raw_rows_written_to_artifacts": False,
+        "analytical_acceptance": False,
+    }
+    _write_public(Path(output_dir), metrics, {"canonical_variant_rows", "vertical_slice"})
     return metrics
 
 
