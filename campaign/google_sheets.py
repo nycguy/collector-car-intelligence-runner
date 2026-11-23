@@ -51,20 +51,21 @@ def _write_rows(service, spreadsheet_id: str, title: str, rows: list[list[Any]])
     _retry(lambda: service.spreadsheets().values().clear(spreadsheetId=spreadsheet_id,range=f"'{title}'!A:Z",body={}).execute())
     _retry(lambda: service.spreadsheets().values().update(spreadsheetId=spreadsheet_id,range=f"'{title}'!A1",valueInputOption="RAW",body={"values":rows}).execute())
     check=_values(service,spreadsheet_id,title,f"A1:{_column_letter(len(rows[0]))}{len(rows)}"); expected=[list(map(lambda x:"" if x is None else x,row)) for row in rows]; got=[(row+[""]*len(rows[0]))[:len(rows[0])] for row in check]
+    def _canonical(value: Any) -> Any:
+        if isinstance(value, float) and not math.isfinite(value): return None
+        if isinstance(value, dict): return {key: _canonical(item) for key, item in value.items()}
+        if isinstance(value, list): return [_canonical(item) for item in value]
+        return value
     def _cell_equal(a: Any, b: Any) -> bool:
         if a in (None, "") and b in (None, ""): return True
         if isinstance(a, (int, float, bool)) and isinstance(b, (int, float, bool)):
-            return float(a) == float(b)
-        if isinstance(a, str) and isinstance(b, (int, float, bool)):
-            try: return float(a) == float(b)
-            except (TypeError, ValueError): pass
-        if isinstance(b, str) and isinstance(a, (int, float, bool)):
-            try: return float(a) == float(b)
-            except (TypeError, ValueError): pass
+            if isinstance(a, float) and not math.isfinite(a): a = None
+            if isinstance(b, float) and not math.isfinite(b): b = None
+            return a == b
         sa, sb = str(a).strip(), str(b).strip()
         if sa == sb: return True
         try:
-            return json.loads(sa) == json.loads(sb)
+            return _canonical(json.loads(sa)) == _canonical(json.loads(sb))
         except (TypeError, ValueError, json.JSONDecodeError):
             return False
     if len(got) != len(expected) or any(len(a) != len(b) or any(not _cell_equal(x,y) for x,y in zip(a,b)) for a,b in zip(got,expected)):
