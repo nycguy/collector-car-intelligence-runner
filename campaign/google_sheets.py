@@ -35,7 +35,16 @@ def retrieve_transactions(spreadsheet_id: str, sheet: str = "Auction Transaction
     legacy_records = []
     if legacy_rows:
         legacy_header = legacy_rows[0]
-        legacy_records = [dict(zip(legacy_header, row + [""] * (len(legacy_header) - len(row)))) for row in legacy_rows[1:] if any(str(x).strip() for x in row)]
+        if "model_variant" in legacy_header and "screening_result" in legacy_header:
+            legacy_records = [dict(zip(legacy_header, row + [""] * (len(legacy_header) - len(row)))) for row in legacy_rows[1:] if any(str(x).strip() for x in row)]
+    if not legacy_records:
+        crosswalk_rows = _values(service, spreadsheet_id, "Sprint 32 PASS Crosswalk", "A1:H1000")
+        if crosswalk_rows and "source_variant" in crosswalk_rows[0]:
+            crosswalk_header = crosswalk_rows[0]
+            for row in crosswalk_rows[1:]:
+                record = dict(zip(crosswalk_header, row + [""] * (len(crosswalk_header) - len(row))))
+                if str(record.get("original_screening_result", "")).upper() == "PASS":
+                    legacy_records.append({"model_variant": record.get("source_variant", ""), "screening_result": "PASS", "source_urls": ""})
     return path, {"project":project,"sheet":sheet,"range":cell_range,"row_count":len(data),"input_sha256":hashlib.sha256(path.read_bytes()).hexdigest(),"sprint32_pass_records":[r for r in legacy_records if str(r.get("screening_result","")).upper()=="PASS"]}
 def _ensure_sheet(service, spreadsheet_id: str, title: str) -> int:
     meta=_retry(lambda: service.spreadsheets().get(spreadsheetId=spreadsheet_id,fields="sheets.properties").execute())
