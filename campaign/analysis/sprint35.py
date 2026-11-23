@@ -2,6 +2,7 @@
 from __future__ import annotations
 import json, re, time
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 import pandas as pd
@@ -80,29 +81,39 @@ def _decode_batch(vins: list[str]) -> list[dict[str, Any]]:
     payload = response.json()
     return payload.get("Results", [])
 
-def decode_vins(frame: pd.DataFrame, output_dir: Path, batch_size: int = 50, max_request_errors: int = 3) -> tuple[dict[str, dict[str, Any]], dict[str, Any]]:
+def decode_vins(frame: pd.DataFrame, output_dir: Path, batch_size: int = 50, max_workers: int = 8) -> tuple[dict[str, dict[str, Any]], dict[str, Any]]:
     output_dir.mkdir(parents=True, exist_ok=True)
     cache_path = output_dir / "vin_decode_cache.json"
     cache = json.loads(cache_path.read_text()) if cache_path.exists() else {}
     vins = sorted({normalize_vin(v) for v in frame.get("vin", []) if VIN_ALLOWED.fullmatch(normalize_vin(v))})
     pending = [v for v in vins if v not in cache]
     errors = 0
-    for start in range(0, len(pending), batch_size):
-        batch = pending[start:start+batch_size]
+    batches = [pending[start:start + batch_size] for start in range(0, len(pending), batch_size)]
+
+    def run_batch(batch: list[str]) -> tuple[list[str], list[dict[str, Any]], Exception | None]:
         try:
-            results = _decode_batch(batch)
+            return batch, _decode_batch(batch), None
+        except Exception as exc:
+            return batch, [], exc
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(run_batch, batch) for batch in batches]
+        for future in as_completed(futures):
+            batch, results, error = future.result()
+            if error is not None:
+                errors += len(batch)
+                for vin in batch:
+                    cache.setdefault(vin, {"decoder": "NHTSA_vPIC", "decoder_version": "2026-11-20",
+                                           "VIN": vin, "ErrorCode": f"request_error:{type(error).__name__}",
+                                           "retryable": True})
+                continue
             for result in results:
                 vin = normalize_vin(result.get("VIN"))
                 if vin:
                     cache[vin] = {"decoder": "NHTSA_vPIC", "decoder_version": "2026-11-20", **result}
             for vin in batch:
-                cache.setdefault(vin, {"decoder": "NHTSA_vPIC", "decoder_version": "2026-11-20", "VIN": vin, "ErrorCode": "not_returned"})
-        except Exception as exc:
-            errors += len(batch)
-            for vin in batch:
-                cache.setdefault(vin, {"decoder": "NHTSA_vPIC", "decoder_version": "2026-11-20", "VIN": vin, "ErrorCode": f"request_error:{type(exc).__name__}"})
-        if start and start % (batch_size * 10) == 0:
-            cache_path.write_text(json.dumps(cache, indent=2, sort_keys=True))
+                cache.setdefault(vin, {"decoder": "NHTSA_vPIC", "decoder_version": "2026-11-20",
+                                       "VIN": vin, "ErrorCode": "not_returned"})
     cache_path.write_text(json.dumps(cache, indent=2, sort_keys=True))
     successful = [r for r in cache.values() if r.get("Make") or r.get("Model")]
     return cache, {
@@ -113,6 +124,8 @@ def decode_vins(frame: pd.DataFrame, output_dir: Path, batch_size: int = 50, max
         "request_error_rows": errors,
         "decoder": "NHTSA_vPIC",
         "decoder_version": "2026-11-20",
+        "decoder_batch_size": batch_size,
+        "decoder_max_workers": max_workers,
     }
 
 def _text(record: dict[str, Any], *keys: str) -> str:
