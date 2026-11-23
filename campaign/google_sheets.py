@@ -68,8 +68,18 @@ def _write_rows(service, spreadsheet_id: str, title: str, rows: list[list[Any]])
             return _canonical(json.loads(sa)) == _canonical(json.loads(sb))
         except (TypeError, ValueError, json.JSONDecodeError):
             return False
-    if len(got) != len(expected) or any(len(a) != len(b) or any(not _cell_equal(x,y) for x,y in zip(a,b)) for a,b in zip(got,expected)):
-        raise RuntimeError(f"publication readback failed for {title}")
+    mismatch = None
+    if len(got) != len(expected):
+        mismatch = {"expected_rows": len(expected), "got_rows": len(got)}
+    else:
+        for row_index, (actual_row, expected_row) in enumerate(zip(got, expected)):
+            for col_index, (actual, expected_value) in enumerate(zip(actual_row, expected_row)):
+                if not _cell_equal(actual, expected_value):
+                    mismatch = {"row": row_index, "column": col_index, "actual": repr(actual), "expected": repr(expected_value)}
+                    break
+            if mismatch: break
+    if mismatch:
+        raise RuntimeError(f"publication readback failed for {title}: {mismatch}")
     return {"sheet":title,"row_count":len(check),"readback_verified":True}
 def _records_rows(records: list[dict]) -> list[list[Any]]:
     if not records: return [["status","no_records"]]
