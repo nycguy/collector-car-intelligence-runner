@@ -1,6 +1,6 @@
 import pandas as pd
 
-from sprint31 import MODEL_VERSION, analyze, estimate_value, fit_model, prepare_transactions
+from campaign.analysis.sprint31 import MODEL_VERSION, analyze, estimate_value, fit_model, prepare_transactions
 
 
 def _rows():
