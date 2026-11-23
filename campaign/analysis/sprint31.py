@@ -39,6 +39,7 @@ class FitResult:
     feature_columns: list[str]
     residual_sigma: float
     train_end: pd.Timestamp
+    time_origin: pd.Timestamp
 
 
 def _s(frame: pd.DataFrame, col: str) -> pd.Series:
@@ -124,10 +125,10 @@ def fit_model(frame: pd.DataFrame, train_end: str | None = None, alpha: float = 
     sigma = float(np.std(residual, ddof=1)) if len(residual) > 1 else 0.35
     sigma = max(0.08, min(1.5, sigma))
     return FitResult(model=model, frame=train, feature_columns=numeric + categorical, residual_sigma=sigma,
-                     train_end=train["_date"].max())
+                     train_end=train["_date"].max(), time_origin=frame["_date"].min())
 
 
-def _reference_row(group: pd.DataFrame, valuation_date: str, reference: dict[str, Any] | None = None) -> pd.DataFrame:
+def _reference_row(group: pd.DataFrame, valuation_date: str, reference: dict[str, Any] | None = None, fit_time_origin: pd.Timestamp | None = None) -> pd.DataFrame:
     ref = dict(reference or {})
     row: dict[str, Any] = {}
     for col in ("_variant", "transmission", "engine", "body_style", "trim", "generation", "modifications", "_condition", "source_name"):
@@ -144,9 +145,9 @@ def _reference_row(group: pd.DataFrame, valuation_date: str, reference: dict[str
     if year is None:
         known = pd.to_numeric(group["_year"], errors="coerce").dropna()
         year = float(known.median()) if not known.empty else None
-    min_date = group["_date"].min()
     date = pd.Timestamp(valuation_date)
-    row["_time_months"] = (date - min_date).days / 30.4375
+    origin = fit_time_origin if fit_time_origin is not None else group["_date"].min()
+    row["_time_months"] = (date - origin).days / 30.4375
     row["_mileage"] = miles
     row["_log_mileage"] = math.log1p(max(0, float(miles))) if miles is not None else np.nan
     row["_mileage_sq"] = row["_log_mileage"] ** 2 if miles is not None else np.nan
@@ -170,7 +171,7 @@ def estimate_value(fit: FitResult, variant: str, valuation_date: str, reference:
     within = observed_min <= date <= observed_max
     n = len(group)
     effective_n = float(min(n, max(1.0, n / (1.0 + group["_date"].dt.year.nunique() / 8.0))))
-    ref_row = _reference_row(group, valuation_date, reference)
+    ref_row = _reference_row(group, valuation_date, reference, fit.time_origin)
     pred_log = float(fit.model.predict(_feature_frame(ref_row))[0])
     value = float(math.exp(pred_log + 0.5 * fit.residual_sigma ** 2))
     lower, upper = _interval(value, fit.residual_sigma, n, effective_n)
@@ -207,8 +208,8 @@ def estimate_values_batch(fit: FitResult, references: dict[str, dict[str, Any]],
         out[variant] = {"variant": variant, "valuation_date": valuation_date, "estimated_value_usd": round(value, 2),
                         "lower_usd": round(lower, 2), "upper_usd": round(upper, 2), "comparable_sale_count": n,
                         "effective_sample_size": round(effective_n, 2), "historical_min_date": fit.frame["_date"].min().date().isoformat(),
-                        "historical_max_date": fit.train_end.date().isoformat(), "status": "SUPPORTED" if within and n >= 8 else "UNVERIFIED",
-                        "model_version": MODEL_VERSION, "reference_specification": json.dumps(references[variant], sort_keys=True)}
+                        "historical_max_date": fit.train_end.date().isoformat(), "time_origin": fit.time_origin.date().isoformat(), "status": "SUPPORTED" if within and n >= 8 else "UNVERIFIED",
+                        "model_version": MODEL_VERSION, "time_origin": fit.time_origin.date().isoformat(), "reference_specification": json.dumps(references[variant], sort_keys=True)}
     return out
 
 
