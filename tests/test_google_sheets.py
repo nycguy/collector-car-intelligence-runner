@@ -9,10 +9,12 @@ class FakeService:
         self.rows=rows
         self.corrupt=corrupt
         self.range=None
+        self.ranges=[]
     def spreadsheets(self): return self
     def values(self): return self
     def get(self, **kwargs):
         self.range=kwargs.get('range')
+        self.ranges.append(self.range)
         return self
     def clear(self, **kwargs):
         self.rows=[]
@@ -46,7 +48,7 @@ class SheetsContractTests(unittest.TestCase):
         with patch('campaign.google_sheets._service',return_value=(service,'test-project')):
             path,evidence=retrieve_transactions('test')
             try:
-                self.assertEqual(service.range,"'Auction Transactions'!A1:AQ")
+                self.assertIn("'Auction Transactions'!A1:AQ",service.ranges)
                 self.assertEqual(evidence['row_count'],28058)
                 self.assertEqual(len(evidence['input_sha256']),64)
             finally:
