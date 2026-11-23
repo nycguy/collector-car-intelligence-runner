@@ -8,7 +8,7 @@ class Sprint35VinTests(unittest.TestCase):
     def test_normalization_and_check_digit(self):
         self.assertEqual(normalize_vin(" jh4-na1151-nt000919 "), "JH4NA1151NT000919")
         self.assertIs(check_digit_valid("JH4NA1151NT000919"), True)
-        self.assertIs(check_digit_valid("JH4NA1151NT000918"), False)
+        self.assertIs(check_digit_valid("JH4NA1152NT000919"), False)
         self.assertIsNone(check_digit_valid("ABC123"))
 
     def test_audit_preserves_repeats(self):
