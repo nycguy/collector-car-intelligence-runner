@@ -1,14 +1,14 @@
 from __future__ import annotations
 import json, os, time
 from pathlib import Path
-from .executor import execute, execute_sprint27, execute_sprint28, execute_sprint29, execute_sprint30, execute_sprint31, execute_sprint32
+from .executor import execute, execute_sprint27, execute_sprint28, execute_sprint29, execute_sprint30, execute_sprint31, execute_sprint32, execute_sprint34
 from .google_sheets import retrieve_transactions, publish_metrics, publish_sprint26, publish_sprint27, publish_sprint28, publish_sprint29, publish_sprint30, publish_sprint31, publish_sprint32
 
 def run() -> dict:
     started = time.monotonic()
     spreadsheet_id = os.environ["CCI_SPREADSHEET_ID"]
     mode = os.environ.get("CCI_MODE", "auth-test")
-    allowed = {"auth-test","production","sprint26","sprint27","sprint28","sprint29","sprint30","sprint31","sprint32"}
+    allowed = {"auth-test","production","sprint26","sprint27","sprint28","sprint29","sprint30","sprint31","sprint32","sprint34"}
     if mode not in allowed: raise ValueError("unsupported execution mode")
     snapshot_id = os.environ.get("CCI_SNAPSHOT_ID") or f"github-actions-{os.environ.get('GITHUB_RUN_ID','local')}"
     output_dir = Path(os.environ.get("CCI_OUTPUT_DIR", "run-output"))
@@ -32,6 +32,7 @@ def run() -> dict:
         elif mode == "sprint30": publication = publish_sprint30(spreadsheet_id,metrics)
         elif mode == "sprint31": publication = publish_sprint31(spreadsheet_id,metrics)
         elif mode == "sprint32": publication = publish_sprint32(spreadsheet_id,metrics)
+        elif mode == "sprint34": publication = publish_sprint34(spreadsheet_id,metrics)
         else: publication = publish_metrics(spreadsheet_id,metrics,"Sprint 25 Runner Output")
         metrics["publication"] = publication
         output_dir.mkdir(parents=True,exist_ok=True)
